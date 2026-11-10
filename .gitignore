@@ -13,5 +13,7 @@ data/
 .vefaas/
 .DS_Store
 .intermediate/
-projects/忆谈/docs/evidence/**/*.png
-projects/忆谈/docs/evidence/**/*.jpg
+docs/evidence/
+*.db
+*.sqlite
+*.pem
