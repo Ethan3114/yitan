@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+node_modules/
+.next/
+.next-dev/
+*.tsbuildinfo
+dist/
+data/
+.vefaas/
+.DS_Store
+.intermediate/
+projects/忆谈/docs/evidence/**/*.png
+projects/忆谈/docs/evidence/**/*.jpg

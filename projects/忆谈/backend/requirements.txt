@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn==0.34.0
+sqlalchemy==2.0.36
+alembic==1.14.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+cryptography==44.0.0
+python-multipart==0.0.20
+websockets==14.1
+httpx==0.28.1
+oss2==2.19.1
+aliyun-python-sdk-core==2.16.0
+pytest==8.3.4
+Pillow==13.0.0
