@@ -1,0 +1,12 @@
+{
+  "name": "yitan-figma-book-design",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild product-design.js --bundle --format=iife --target=es2017 --loader:.html=text --loader:.browser.js=text --outfile=dist/code.js"
+  },
+  "dependencies": {
+    "page-flip": "2.0.7",
+    "esbuild": "0.25.12"
+  }
+}

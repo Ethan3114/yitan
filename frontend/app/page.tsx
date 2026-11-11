@@ -17,7 +17,7 @@ export default function Home() {
       if (controller.signal.aborted) return;
       const remembered = data.items.find(item => item.id === localStorage.getItem("yitan.currentProfile"));
       const selected = remembered ?? (data.items.length === 1 ? data.items[0] : undefined);
-      router.replace(selected ? `/profiles/${selected.id}` : data.items.length ? "/profiles" : "/welcome?step=4");
+      router.replace(selected ? `/profiles/${selected.id}` : data.items.length ? "/profiles" : "/welcome?step=5");
     }).catch(cause => {
       if (controller.signal.aborted) return;
       if (cause instanceof ApiError && cause.code === "unauthorized") setGuest(true);

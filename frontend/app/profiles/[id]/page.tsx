@@ -32,9 +32,11 @@ export default function ProfilePage({ params: paramsPromise, searchParams: searc
   return <Shell title="我的回忆录" subtitle="说过的话，都有了归处" profileId={params.id}>
     <Status error={error} unauthorized={unauthorized} retry={reload} loading={!profile && !error} />
     {profile ? <>
-      <div className="book-stage"><BookCover title={profile.book_title} name={profile.elder_name} /></div>
+      <section className="personal-book-front" aria-label="我的书封"><div className="book-stage"><BookCover title={profile.book_title} name={profile.elder_name} /></div>
       <div className="book-caption"><span>{chapters.length} 篇回忆</span><span>{profile.calls.length} 次访谈</span></div>
+      {chapters.length ? <Link className="secondary section" href={`${base}/book`}>翻开我的回忆录</Link> : null}
       <div style={{ textAlign: "center" }}><button type="button" className="text-link small-text" onClick={() => setEditing(!editing)}><PencilLine size={14} style={{ display: "inline", marginRight: 6 }} />修改书名</button></div>
+      </section>
       {editing ? <form className="card form" onSubmit={saveTitle}><label className="field">书名<input name="title" defaultValue={profile.book_title} required maxLength={60} /></label><button className="primary" disabled={saving}>保存书名</button></form> : null}
       <Status error={message} />
       <section className="talk-card"><span className="eyebrow">今天，慢慢聊</span><h2>{profile.calls.length ? "还有哪些往事，想接着讲？" : "小时候的家，是什么样子？"}</h2><Link className="primary" href={`${base}/call`}><Mic size={24} />{profile.calls.length ? "继续聊聊" : "开始第一次访谈"}</Link><Link href={`${base}?tab=photos`} className="photo-prompt"><Images size={20} />从照片聊起<ChevronRight size={18} /></Link></section>

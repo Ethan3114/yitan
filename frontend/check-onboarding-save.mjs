@@ -28,7 +28,7 @@ await page.getByRole("heading", { name: "把手机交给引导建档验收" }).w
 await page.goto(base);
 await page.waitForURL(`${base}/profiles/${id}`);
 assert.equal(await page.locator(".chapter-row").count(), 0);
-await page.goto(`${base}/welcome?step=4`);
+await page.goto(`${base}/welcome?step=5`);
 await page.getByRole("link", { name: /为自己记录/ }).click();
 await page.waitForURL("**/profiles?new=1&for=self");
 await page.getByLabel("怎么称呼您", { exact: true }).fill("本人建档验收");

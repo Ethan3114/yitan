@@ -1,0 +1,42 @@
+.book-introduction { max-width:480px; min-height:100svh; margin:auto; padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom); background:#e9e0d1; color:#41372e; }
+.book-introduction-nav { min-height:76px; display:flex; align-items:center; justify-content:space-between; padding:8px; font-size:16px; }
+.book-introduction-nav a { display:flex; align-items:center; min-height:44px; }
+.guide-binding { padding:5px 6px 8px 5px; background:#6b5541; border-radius:5px; box-shadow:3px 7px 14px #46382722; perspective:1600px; }
+.guide-leaf { position:relative; min-height:calc(100svh - 186px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); background-color:#faf3e7; background-size:100% 100%,100% auto; background-position:center,bottom; background-repeat:no-repeat; border-left:1px solid #c9b898; box-shadow:2px 2px #ede0c8,4px 4px #b8a78d; transform-origin:left center; animation:open-leaf 420ms ease-out; padding:34px 26px 56px 30px; }
+.guide-leaf::after { content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg,#8e704c25,transparent 15px),repeating-linear-gradient(17deg,#8a632d06 0 1px,transparent 1px 4px),repeating-linear-gradient(94deg,#8a632d04 0 1px,transparent 1px 5px); }
+.guide-copy { position:relative; z-index:1; min-height:530px; }
+.guide-copy h1,.guide-cover h1 { font:29px/1.65 "Songti SC","Noto Serif SC",SimSun,serif; white-space:pre-line; margin:22px 0; color:#41372e; }
+.guide-copy>p { font:18px/1.8 "Songti SC",SimSun,serif; white-space:pre-line; }
+.guide-copy .guide-label { font-size:16px; color:#776956; }
+.guide-book-links { display:flex; flex-direction:column; margin-top:16px; align-items:flex-start; }
+.guide-book-links a { min-height:48px; padding:7px 0; color:#795922; text-decoration:underline; text-underline-offset:7px; font:19px/1.8 "Songti SC",SimSun,serif; }
+.guide-folio { position:absolute; bottom:12px; left:0; right:0; text-align:center; font:16px/24px Georgia,serif; color:#88755d; }
+.guide-controls { display:flex; gap:24px; align-items:center; justify-content:space-between; padding:24px 8px; }
+.guide-controls>a { min-height:52px; display:flex; align-items:center; justify-content:center; white-space:nowrap; }
+.guide-controls .primary { width:68%; border-radius:16px; font-weight:500; }
+.guide-cover { text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; background:repeating-linear-gradient(0deg,#fff8 0 1px,transparent 1px 4px),#e9d9b9; }
+.guide-cover .book-cover { width:180px; margin:22px 8px 16px 0; }
+.guide-cover .book-cover-inner { min-height:248px; }
+.guide-cover .book-cover h2 { font-size:44px; letter-spacing:.18em; padding-left:.18em; }
+.guide-cover h1 { font-size:25px; margin:12px 0 18px; }
+.guide-imprint { font:16px/1.8 "Songti SC",serif; letter-spacing:.25em; }
+.guide-signature { font:16px/1.8 "Songti SC",serif; color:#776956; }
+.guide-role-options { margin-top:24px; }
+.guide-role-options a { display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:66px; border-top:1px solid #d7c6a8; padding:14px 2px; font:21px/1.6 "Songti SC",serif; }
+.app-frame { background:#e9e0d1; }
+.page-header { padding-top:calc(20px + env(safe-area-inset-top)); }
+.header-copy h1,.section-heading h2,.talk-card h2 { font-family:"Songti SC","Noto Serif SC",SimSun,serif; }
+.book-cover-inner { min-height:310px; padding:44px 24px 28px 36px; border-radius:3px; background:repeating-linear-gradient(0deg,#ffffff18 0 1px,transparent 1px 3px),linear-gradient(90deg,#b5a07b 0 12px,#e8d9bc 13px,#d7c4a1 16px); justify-content:center; gap:26px; outline:1px solid #ae9468; outline-offset:-24px; }
+.book-cover h2 { font:28px/1.55 "Songti SC","Noto Serif SC",SimSun,serif; }
+.book-cover p { font:16px/1.7 "Songti SC",SimSun,serif; }
+.cover-publisher { margin-top:14px; }
+.small .book-cover-inner { outline-offset:-9px; }
+.small h2 { font-size:14px; }.small p { font-size:10px; }
+.personal-book-front { padding:22px 20px; background:repeating-linear-gradient(20deg,#8a632d04 0 1px,transparent 1px 4px),#f9f3e6; border-left:1px solid #caba9c; box-shadow:3px 4px #dfd1ba,6px 7px #f4ead8; }
+.personal-book-front .book-stage { padding:12px 0 24px; background:none; }
+.personal-book-front .secondary { background:none; border:0; border-top:1px solid #d7c6a8; border-bottom:1px solid #d7c6a8; border-radius:0; font:22px/1.6 "Songti SC",serif; margin:20px 0 10px; }
+.talk-card { padding:26px 22px 8px; background:#f9f3e6; border-left:1px solid #caba9c; box-shadow:3px 4px #dfd1ba; }
+.primary,.secondary { border-radius:16px; }
+@keyframes open-leaf { from { transform:rotateY(-12deg); opacity:.7; } to { transform:rotateY(0); opacity:1; } }
+@media(max-width:360px) { .guide-leaf { padding:26px 18px 48px 22px; }.guide-copy h1 { font-size:25px; }.guide-copy>p { font-size:17px; }.guide-cover h1 { font-size:22px; }.guide-cover .book-cover { width:160px; }.guide-cover .book-cover-inner { min-height:220px; }.guide-controls { gap:16px; } }
+@media(prefers-reduced-motion:reduce) { .guide-leaf { animation:none; } }

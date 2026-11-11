@@ -12,7 +12,7 @@ export default function ProfilesPage({ searchParams: searchPromise }: { searchPa
   const searchParams = use(searchPromise);
   const { data, error, unauthorized, reload } = useResource("/api/v1/profiles", profilesSchema);
   const creating = searchParams.new === "1";
-  return <Shell title={creating ? searchParams.for === "self" ? "开始我的回忆录" : "为家人记一本" : "家里的回忆录"} subtitle="每个人，都有值得留下的故事" back={creating ? "/welcome?step=4" : undefined}>
+  return <Shell title={creating ? searchParams.for === "self" ? "开始我的回忆录" : "为家人记一本" : "家里的回忆录"} subtitle="每个人，都有值得留下的故事" back={creating ? "/welcome?step=5" : undefined}>
     <Status error={error} unauthorized={unauthorized} retry={reload} loading={!data && !error} />
     {data ? creating ? <ProfileForm recordFor={searchParams.for} /> : <>
       {searchParams.select ? <p className="notice">选择一本回忆录，查看家人页面。</p> : null}

@@ -1,0 +1,49 @@
+.digital-book { max-width:480px; min-height:100svh; margin:auto; padding:env(safe-area-inset-top) 20px calc(24px + env(safe-area-inset-bottom)); background:#e9e0d1; color:#41372e; }
+.reading-tools { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:76px; font-size:16px; }
+.reading-tools a,.reading-tools button { flex:none; min-height:48px; display:flex; align-items:center; padding:8px 4px; border:0; background:none; color:inherit; }
+.reading-tools span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#817565; font-size:14px; }
+.digital-cover { padding:52px 8px 12px; display:flex; flex-direction:column; align-items:center; gap:24px; }
+.digital-book .book-cover { width:240px; max-width:100%; }
+.digital-book .book-cover-inner { min-height:336px; padding:46px 24px 30px 36px; border-radius:3px; background:repeating-linear-gradient(0deg,#ffffff06 0 1px,transparent 1px 3px),linear-gradient(90deg,#b5a07b 0 12px,#e8d9bc 13px,#d7c4a1 16px); justify-content:center; gap:26px; outline:1px solid #ae9468; outline-offset:-28px; }
+.digital-book .cover-illustration,.digital-book .book-ribbon { display:none; }
+.digital-book .book-cover h2 { font-size:28px; line-height:1.55; }
+.digital-book .book-cover p { font-size:17px; }
+.digital-cover>p { color:#817565; font-size:16px; }
+.digital-cover blockquote { font:20px/1.8 "Songti SC","Noto Serif SC",SimSun,serif; text-align:center; margin:0; overflow-wrap:anywhere; }
+.digital-cover .primary { margin-top:8px; border-radius:14px; }
+.printed-contents,.printed-chapter { background:linear-gradient(90deg,#d9c9ad38,transparent 22px),repeating-linear-gradient(20deg,#8a632d04 0 1px,transparent 1px 4px),#f9f3e6; box-shadow:3px 5px 0 #dfd1ba,7px 9px 16px #41372e14; border-left:1px solid #d2c1a2; }
+.printed-contents { padding:32px 24px; min-height:70svh; }
+.printed-contents h1 { font:28px/1.5 "Songti SC",SimSun,serif; margin-bottom:28px; }
+.printed-contents ol { list-style:none; padding:0; margin:0; }
+.printed-contents li a { display:flex; gap:16px; align-items:flex-start; padding:20px 0; border-bottom:1px solid #ded3c1; }
+.printed-contents li span { color:#817565; font-family:Georgia,serif; }
+.printed-contents li strong { font:20px/1.6 "Songti SC",SimSun,serif; overflow-wrap:anywhere; }
+.reading-mode { padding-left:16px; padding-right:16px; }
+.printed-chapter { height:calc(100svh - 180px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); min-height:470px; padding:24px 24px 12px; display:flex; flex-direction:column; }
+.printed-chapter header { flex:none; margin-bottom:22px; }
+.printed-chapter header>p { font:15px/1.7 "Songti SC",SimSun,serif; color:#817565; margin-bottom:10px; }
+.printed-chapter h1 { font:25px/1.5 "Songti SC","Noto Serif SC",SimSun,serif; overflow-wrap:anywhere; }
+.page-window { flex:1; min-height:200px; overflow:hidden; position:relative; }
+.printed-columns { height:100%; width:100%; column-fill:auto; column-gap:32px; font:20px/1.7 "Songti SC","Noto Serif SC",SimSun,serif; transition:transform 260ms ease; overflow-wrap:anywhere; }
+.printed-columns p { margin:0 0 1em; text-indent:2em; orphans:2; widows:2; }
+.large-type .printed-columns { font-size:24px; line-height:1.8; }
+.printed-folio { flex:none; margin-top:12px; text-align:center; color:#817565; font:14px/22px Georgia,serif; }
+.reading-controls { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:16px; }
+.reading-controls>* { min-height:48px; min-width:72px; display:flex; justify-content:center; align-items:center; border:0; color:#41372e; background:none; font-size:18px; }
+.book-gallery>header { padding:28px 8px 34px; }
+.book-gallery h1 { font:30px/1.5 "Songti SC",SimSun,serif; margin-bottom:16px; }
+.book-gallery header p { font-size:17px; color:#817565; }
+.showcase-shelf { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:26px; padding:8px 4px 30px; }
+.showcase-shelf>a { min-width:0; }
+.showcase-shelf .book-cover { width:100%; margin-bottom:26px; }
+.showcase-shelf .book-cover-inner { min-height:230px; padding:35px 14px 24px 24px; outline-offset:-16px; gap:18px; }
+.showcase-shelf .book-cover h2 { font-size:21px; }
+.showcase-shelf .book-cover p { font-size:13px; }
+.showcase-shelf h2 { font-size:22px; margin-top:16px; }
+.showcase-shelf p { color:#817565; font-size:16px; margin:8px 0; }
+.showcase-shelf .text-link { display:flex; align-items:center; font-size:16px; }
+.real-book-links { display:flex; flex-wrap:wrap; justify-content:center; gap:8px 22px; width:100%; }
+.real-book-links a { min-height:48px; display:flex; align-items:center; color:var(--gold); text-decoration:underline; text-underline-offset:6px; font-size:17px; }
+.real-book-links a:last-child { flex-basis:100%; justify-content:center; }
+@media(max-width:360px) { .digital-book { padding-left:12px; padding-right:12px; }.printed-chapter { padding-left:20px; padding-right:20px; }.showcase-shelf { gap:20px; }.showcase-shelf .book-cover h2 { font-size:18px; } }
+@media(prefers-reduced-motion:reduce) { .printed-columns { transition:none; } }

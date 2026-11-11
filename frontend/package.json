@@ -7,7 +7,8 @@
     "typecheck": "tsc --noEmit",
     "build": "next build",
     "lint": "eslint app components lib --max-warnings 0",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "http-proxy": "^1.18.1",

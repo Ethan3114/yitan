@@ -11,36 +11,34 @@ const context = await browser.newContext({ viewport: { width: 390, height: 844 }
 const page = await context.newPage();
 const errors = [];
 page.on("pageerror", error => errors.push(error.message));
-const evidence = path.join(root, "docs/evidence/阶段3-3");
 await page.goto(base);
-await page.getByRole("link", { name: "开始我的回忆录", exact: true }).waitFor();
+await page.getByRole("link", { name: "翻开这本书", exact: true }).waitFor();
 assert.equal(await page.locator(".list-card").count(), 0);
 for (const width of [360, 375, 390, 430]) {
   await page.setViewportSize({ width, height: 844 });
-  for (const step of [0, 1, 2, 3, 4]) {
+  for (const step of [0, 1, 2, 3, 4, 5]) {
     await page.goto(`${base}/welcome?step=${step}`);
-    await page.locator(".onboarding-content").waitFor();
+    await page.locator(".guide-leaf").waitFor();
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('.guide-leaf')).transform === 'none');
     const metrics = await page.evaluate(() => {
-      const elements = [...document.querySelectorAll(".onboarding-content>*,.onboarding-actions")];
+      const elements = [...document.querySelectorAll(".guide-copy>*,.guide-controls")];
       const boxes = elements.map(el => el.getBoundingClientRect());
       return { width: innerWidth, scroll: document.documentElement.scrollWidth, overlap: boxes.some((a, i) => boxes.some((b, j) => i < j && Math.min(a.right,b.right)-Math.max(a.left,b.left)>1 && Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)), buttons: [...document.querySelectorAll("a,button,summary")].filter(el => el.getBoundingClientRect().height > 0).every(el => el.getBoundingClientRect().height >= 44) };
     });
     assert.ok(metrics.scroll <= metrics.width, `step ${step} ${width} 横向溢出`);
     assert.equal(metrics.overlap, false, `step ${step} ${width} 内容重叠`);
     assert.ok(metrics.buttons, `step ${step} ${width} 触控区域不足`);
-    await page.screenshot({ path: path.join(evidence, `首次引导-${step}-${width}px.png`), fullPage: true });
   }
 }
 await page.goto(`${base}/welcome?step=1`);
-await page.getByRole("button", { name: "打开一张回忆卡" }).click();
-assert.equal(await page.getByRole("button", { name: "那时，家里谁做的饭最香？" }).getAttribute("aria-expanded"), "true");
-await page.getByRole("link", { name: "看看回忆怎样成书" }).click();
-await page.getByText("翻开书页，看看版式", { exact: true }).click();
-await page.getByRole("heading", { name: "第一章　童年的家" }).waitFor();
-await page.getByRole("link", { name: "看看怎样留给家人" }).click();
-await page.getByText("家人会看到什么？", { exact: true }).click();
-await page.getByRole("heading", { name: "您选择的故事" }).waitFor();
-await page.getByRole("link", { name: "开始记录我们的故事" }).click();
+await page.getByRole("link", { name: "下一页 ›" }).click();
+await page.waitForURL("**/welcome?step=2");
+await page.getByRole("link", { name: "下一页 ›" }).click();
+await page.getByRole("link", { name: "李奶奶的故事 ›" }).click();
+await page.getByRole("link", { name: "翻开阅读" }).waitFor();
+await page.goto(`${base}/welcome?step=4`);
+await page.getByRole("heading", { name: "让熟悉的人， 读懂您的这些年。" }).waitFor();
+await page.getByRole("link", { name: "下一页 ›" }).click();
 await page.getByRole("link", { name: /为妈妈记录/ }).click();
 await page.waitForURL("**/login?for=mother");
 const code = execFileSync(path.join(root, "backend/.venv/bin/python"), ["-c", "from app.core.config import get_settings; print(get_settings().invite_code)"], { cwd: path.join(root, "backend"), encoding: "utf8" }).trim();
@@ -55,7 +53,7 @@ const profiles = (await (await context.request.get(`${base}/api/v1/profiles`)).j
 assert.ok(profiles.length, "使用已有真实回忆录验证返回路径");
 const id = profiles[0].id;
 await page.goto(`${base}/profiles/${id}`);
-await page.locator(".book-cover").waitFor();
+await page.locator(".personal-book-front .book-cover").waitFor();
 await page.waitForFunction(expected => localStorage.getItem("yitan.currentProfile") === expected, id);
 await page.goto(base);
 await page.waitForURL(`${base}/profiles/${id}`);
@@ -63,13 +61,13 @@ await page.goto(`${base}/profiles/${id}/handoff`);
 await page.getByRole("link", { name: "准备好了，开始聊聊" }).click();
 await page.getByRole("button", { name: "开始聊聊" }).click();
 await page.getByText("请由老人本人勾选同意录音后再开始。").waitFor();
-await page.goto(`${base}/welcome?step=2`);
+await page.goto(`${base}/welcome?step=3`);
 await page.setViewportSize({ width: 360, height: 568 });
-await page.evaluate(() => { document.querySelector(".onboarding").style.fontSize = "200%"; document.querySelectorAll(".onboarding h2,.onboarding p").forEach(el => { el.style.fontSize = "32px"; }); });
+await page.evaluate(() => { document.querySelectorAll(".guide-copy h1,.guide-copy p").forEach(el => { el.style.fontSize = "32px"; }); });
 assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-await page.getByRole("link", { name: "看看怎样留给家人" }).click();
-await page.waitForURL("**/welcome?step=3");
+await page.getByRole("link", { name: "下一页 ›" }).click();
+await page.waitForURL("**/welcome?step=4");
 assert.deepEqual(errors, []);
-await fs.writeFile(path.join(root, ".intermediate/validation/onboarding-result.json"), JSON.stringify({ widths: [360,375,390,430], pages: 20, interactions: "回忆卡、书页、家人预览、角色选择、登录、建档展开、本人首页恢复、交接与录音同意保护、放大字体", passed: true, errors }));
+await fs.writeFile(path.join(root, ".intermediate/validation/onboarding-result.json"), JSON.stringify({ widths: [360,375,390,430], pages: 24, interactions: "六页书式引导、真实样书、角色选择、登录、建档展开、本人首页恢复、交接与录音同意保护、放大字体", passed: true, errors }));
 await browser.close();
-console.log("通过：20 个引导页面布局、完整跳转、真实登录、已有回忆录恢复、交接和录音同意保护、字体放大；未创建档案或调用模型。");
+console.log("通过：24 个引导页面布局、完整跳转、真实登录、已有回忆录恢复、交接和录音同意保护、字体放大；未创建档案或调用模型。");

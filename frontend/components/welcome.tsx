@@ -1,30 +1,29 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowLeft, BookOpen, Headphones, Heart, Mic } from "lucide-react";
 import { BookCover } from "./book-cover";
 
-const steps = [
-  { title: "忆谈", lead: "把一生的故事，\n留给最亲的人", description: "和您聊聊往事，整理成一本\n可以读、可以听的回忆录。", action: "开始我的回忆录" },
-  { title: "从一件小事，慢慢聊起", lead: "小时候的家，\n您还记得什么？", description: "一条回家的路，一顿家常饭。\n想起什么，就从什么开始讲。", action: "看看回忆怎样成书" },
-  { title: "说过的往事，成为一页书", lead: "一段讲述，\n一篇属于您的回忆", description: "忆谈把讲述整理成章节。\n您可以阅读、修改，也可以重听原声。", action: "看看怎样留给家人" },
-  { title: "让家人，读懂您的这些年", lead: "留下一本书，\n也留下熟悉的声音", description: "挑选愿意分享的章节，邀请家人阅读。\n是否分享原声，由您决定。", action: "开始记录我们的故事" },
+const pages = [
+  { label: "忆谈 · 口述回忆录", title: "把一生的故事，\n留在一本书里。", copy: "", scene: "" },
+  { label: "序言 · 想起一件小事", title: "您小时候，\n家里最热闹的地方？", copy: "一张老照片、一顿家常饭，\n都能成为故事的第一页。", scene: "courtyard" },
+  { label: "第一步 · 慢慢讲述", title: "像聊天一样，\n讲讲走过的日子。", copy: "忆谈陪您慢慢聊。\n想起什么，就从什么开始讲。", scene: "conversation" },
+  { label: "第二步 · 整理成书", title: "讲过的日子，\n成为一本回忆录。", copy: "翻开他们的书，看看成书的样子。", scene: "conversation" },
+  { label: "第三步 · 留给家人", title: "让熟悉的人，\n读懂您的这些年。", copy: "选几篇故事，邀请家人阅读。\n熟悉的声音，也可以一同留下。", scene: "family" },
+  { label: "扉页 · 这是谁的书", title: "这本回忆录，\n想为谁留下？", copy: "讲自己的经历，或陪家人一起回忆。", scene: "" },
 ];
 
 export function Welcome({ step }: { step: number }) {
-  const content = steps[step];
-  const [opened, setOpened] = useState(false);
-  return <main className={`onboarding welcome-${step}`}>
-    <header className="onboarding-nav">{step > 0 ? <Link className="icon-button" href={`/welcome?step=${step - 1}`} aria-label="返回上一步"><ArrowLeft size={22} /></Link> : <span className="brand-word"><BookOpen size={22} />忆谈</span>}{step > 0 && step < 4 ? <><span className="muted small-text">{step} / 3</span><Link className="text-link" href="/welcome?step=4">直接开始</Link></> : <Link className="text-link" href="/login">已有回忆录</Link>}</header>
-    {step < 4 ? <>
-      <section className="onboarding-content">
-        {step === 0 ? <><div className="book-stage"><BookCover title="一生的故事" /></div><h1 className="brand-title">{content.title}</h1></> : <><p className="eyebrow">{content.title}</p>{step === 1 ? <button type="button" className="memory-question" aria-expanded={opened} onClick={() => setOpened(value => !value)}><span className="memory-picture" aria-hidden="true" /><Mic size={30} /><span>{opened ? "那时，家里谁做的饭最香？" : "打开一张回忆卡"}</span></button> : <div className="book-stage"><BookCover title="我的故事" /></div>}</>}
-        <h2>{content.lead}</h2><p className="onboarding-description">{content.description}</p>
-        {step === 3 ? <div className="family-promises"><span><BookOpen size={20} />读回忆</span><span><Headphones size={20} />听原声</span><span><Heart size={20} />留句话</span></div> : null}
-        {step === 2 ? <details className="preview-page"><summary>翻开书页，看看版式</summary><article><p className="eyebrow">书页版式预览</p><h3>第一章　童年的家</h3><p>这里将写下您亲口讲述的经历。地点、人物和细节，都来自您的回忆。</p><p>写好后可以查看、修改，也能回听当时的声音。</p></article></details> : null}
-        {step === 3 ? <details className="preview-page"><summary>家人会看到什么？</summary><article><h3>您选择的故事</h3><p>家人接受邀请后，可以阅读您选好的章节、查看照片并留言。录音只有在您单独允许后才能收听。</p><p>当前请连接同一 Wi-Fi，并保持运行忆谈的电脑开启。</p></article></details> : null}
+  const content = pages[step];
+  return <main className="book-introduction" data-design="book-second">
+    <header className="book-introduction-nav"><Link href={step ? `/welcome?step=${step - 1}` : "/login"}>{step ? "‹ 返回" : "忆谈"}</Link><Link href="/login">已有回忆录</Link></header>
+    <div className="guide-binding">
+      <section key={step} className={`guide-leaf ${step === 0 ? "guide-cover" : ""} ${step === 5 ? "guide-title-page" : ""}`} aria-label={content.label} style={content.scene ? { backgroundImage: `linear-gradient(to bottom, #faf3e7 0%, #faf3e7ed 30%, #faf3e720 62%), url('/images/${content.scene}.png')` } : undefined}>
+        {step === 0 ? <><p className="guide-imprint">口述回忆录</p><BookCover title="忆谈" /><h1>{content.title}</h1><p className="guide-signature">每个人的一生，都值得成书。</p></> : <div className="guide-copy"><p className="guide-label">{content.label}</p><h1>{content.title}</h1><p>{content.copy}</p>
+          {step === 3 ? <div className="guide-book-links"><Link href="/books/li">李奶奶的故事 ›</Link><Link href="/books/yang">杨奶奶的故事 ›</Link></div> : null}
+          {step === 5 ? <div className="guide-role-options">{[["self", "为自己记录"], ["mother", "为妈妈记录"], ["father", "为爸爸记录"], ["family", "为其他家人记录"]].map(([value, label]) => <Link key={value} href={`/login?for=${value}`}><span>{label}</span><span aria-hidden="true">›</span></Link>)}</div> : null}
+        </div>}
+        <span className="guide-folio">{String(step + 1).padStart(2, "0")}</span>
       </section>
-      <footer className="onboarding-actions"><Link className="primary" href={`/welcome?step=${step + 1}`}>{content.action}</Link></footer>
-    </> : <section className="onboarding-content role-selection"><BookOpen size={36} /><h1>这本回忆录，<br />想为谁留下？</h1><p className="onboarding-description">讲自己的经历，或陪家人一起回忆。</p><div className="role-options">{[["self", "为自己记录", "那些经历，值得亲口讲一讲"], ["mother", "为妈妈记录", "听听她年轻时的故事"], ["father", "为爸爸记录", "留下他一路走来的经历"], ["family", "为其他家人记录", "陪重要的人，慢慢回忆"]].map(([value, label, detail]) => <Link key={value} className="role-option" href={`/login?for=${value}`}><strong>{label}</strong><span>{detail}</span><span aria-hidden="true">→</span></Link>)}</div></section>}
+    </div>
+    <footer className="guide-controls">{step > 0 ? <Link href={`/welcome?step=${step - 1}`}>上一页</Link> : <span />}{step < 5 ? <Link className="primary" href={`/welcome?step=${step + 1}`}>{step === 0 ? "翻开这本书" : "下一页 ›"}</Link> : <Link href="/books">翻阅真实回忆录 ›</Link>}</footer>
   </main>;
 }

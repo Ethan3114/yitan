@@ -13,6 +13,7 @@ data/
 .vefaas/
 .DS_Store
 .intermediate/
+frontend/test-results/
 docs/evidence/
 *.db
 *.sqlite

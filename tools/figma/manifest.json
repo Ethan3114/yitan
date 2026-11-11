@@ -1,0 +1,9 @@
+{
+  "name": "忆谈 · 书页交互设计",
+  "id": "yitan-book-interaction-local",
+  "api": "1.0.0",
+  "main": "dist/code.js",
+  "editorType": ["figma"],
+  "documentAccess": "dynamic-page",
+  "networkAccess": { "allowedDomains": ["none"] }
+}
