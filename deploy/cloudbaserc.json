@@ -11,7 +11,7 @@
       "memorySize": 128,
       "installDependency": false,
       "triggers": [
-        { "name": "yitan-worker-every-five-minutes", "type": "timer", "config": "0 */5 * * * * *" }
+        { "name": "yitan-worker-every-twelve-hours", "type": "timer", "config": "0 0 */12 * * * *" }
       ]
     }
   ]
