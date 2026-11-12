@@ -14,7 +14,7 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const cancel = () => controller.abort(init?.signal?.reason);
   init?.signal?.addEventListener("abort", cancel, { once: true });
   if (init?.signal?.aborted) cancel();
-  const timeout = setTimeout(() => controller.abort(), 15000);
+  const timeout = setTimeout(() => controller.abort(), 30000);
   try {
     const response = await fetch(`${API_BASE}${path}`, {
     ...init,

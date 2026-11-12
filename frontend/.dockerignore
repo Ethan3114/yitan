@@ -1,0 +1,12 @@
+.env*
+node_modules
+.next
+.next-dev
+test-results
+playwright-report
+*.tsbuildinfo
+*.log
+*.pem
+check-*.mjs
+tests
+.intermediate

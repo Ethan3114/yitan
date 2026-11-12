@@ -1,0 +1,26 @@
+.admin-panel { display: grid; gap: 20px; min-width: 0; }
+.admin-panel > * { min-width: 0; }
+.admin-panel .card { margin: 0; min-width: 0; }
+.admin-panel h2 { font-size: 21px; line-height: 1.5; }
+.admin-tabs { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 12px; }
+.admin-tabs button { flex-shrink: 0; border: 1px solid #dfd6c8; background: #fffdf8; border-radius: 24px; padding: 12px 16px; min-height: 44px; color: #514433; }
+.admin-tabs button[aria-pressed="true"] { background: #43594b; color: #fff; border-color: #43594b; }
+.admin-filter { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.admin-filter label { display: grid; gap: 8px; font-size: 14px; min-width: 0; }
+.admin-filter input { min-width: 0; width: 100%; min-height: 44px; padding: 8px; border: 1px solid #dfd6c8; background: #fffdf8; border-radius: 10px; }
+.admin-filter button { grid-column: 1 / -1; }
+.admin-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.admin-kpis .card { padding: 16px; }
+.admin-kpis p { font-size: 14px; }
+.admin-kpis strong { font-size: 34px; color: #43594b; font-variant-numeric: tabular-nums; }
+.admin-funnel { list-style: none; padding: 0; margin: 24px 0 0; }
+.admin-funnel li { margin: 20px 0; }
+.admin-funnel li > button { display: flex; width: 100%; justify-content: space-between; gap: 12px; text-align: left; min-height: 44px; background: transparent; border: 0; color: inherit; }
+.admin-funnel li > button strong { color: #43594b; }
+.admin-bar { height: 10px; background: #ece6dc; border-radius: 8px; overflow: hidden; }
+.admin-bar span { display: block; height: 100%; background: #617c69; border-radius: 8px; }
+.admin-table-wrap { overflow-x: auto; }
+.admin-table-wrap table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.admin-table-wrap th, .admin-table-wrap td { text-align: left; padding: 14px 8px; border-bottom: 1px solid #e5ded2; white-space: nowrap; }
+.admin-account { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid #e5ded2; overflow-wrap: anywhere; }
+.admin-secret { overflow-wrap: anywhere; font-family: monospace; user-select: all; }

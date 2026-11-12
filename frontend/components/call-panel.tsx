@@ -4,6 +4,7 @@ import { Mic, PhoneOff } from "lucide-react";
 import { v4 as uuid } from "uuid";
 import { api, messageFor, wsUrl } from "@/lib/api";
 import { Status } from "./shell";
+import { track } from "@/lib/analytics";
 
 type Props = { profileId: string; elderName?: string; photoId?: string; voiceReady: boolean; onFinished: () => void };
 type Phase = "idle" | "connecting" | "live" | "saving" | "failed";
@@ -72,11 +73,13 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
     if (!voiceReady) { setError("语音服务尚未准备好，请联系管理家属。"); return; }
     if (!navigator.mediaDevices?.getUserMedia) { setError("麦克风需要安全连接，请通过忆谈的 HTTPS 地址打开。"); return; }
     busy.current = true; terminal.current = false; setPhase("connecting"); setError(""); setElapsed(0);
+    track("recording_consent");
     try {
       const context = new AudioContext({ sampleRate: 16000 });
       resources.current.context = context;
       await context.resume();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 } });
+      track("microphone_allowed");
       if (!mounted.current) { stream.getTracks().forEach(track => track.stop()); return; }
       const r = resources.current;
       r.stream = stream; r.context = context; r.playAt = 0;
@@ -147,6 +150,7 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
         setPhase("failed"); setError("连接已断开。请返回回忆录，查看本次访谈的保存情况。");
       };
     } catch (cause) {
+      if (cause instanceof DOMException && cause.name === "NotAllowedError") track("microphone_denied");
       if (!mounted.current) return;
       terminal.current = true; cleanup(); busy.current = false; setPhase("failed"); setError(messageFor(cause));
       if (resources.current.callId) await api(`/api/v1/calls/${resources.current.callId}/abandon`, { method: "POST" });

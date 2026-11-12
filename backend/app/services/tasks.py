@@ -4,6 +4,7 @@ from sqlalchemy import update
 from app.models import Call, DraftTask, WritingRun, utcnow
 from app.services.draft import build_draft
 from app.services.tingwu import ensure_full_transcript
+from app.services.analytics import server_event
 
 
 def task_view(task: DraftTask) -> dict:
@@ -42,12 +43,14 @@ async def run_task(app, task_id: str) -> None:
     with factory() as db:
         task = db.get(DraftTask, task_id)
         task.step = "writing"
+        server_event(db, "transcription_completed", task.owner_id, task.call_id)
         task.updated_at = utcnow()
         db.commit()
         call = db.get(Call, call_id)
         await build_draft(db, app.state.settings, owner, call_id, call.profile_id)
         task.status = "succeeded"
         task.step = "done"
+        server_event(db, "memoir_completed", task.owner_id, task.call_id)
         task.updated_at = utcnow()
         db.commit()
 
@@ -64,6 +67,7 @@ def launch_task(app, task_id: str) -> None:
                 task = db.get(DraftTask, task_id)
                 task.status = "failed"
                 task.error_code = getattr(failure, "code", "draft_failed")
+                server_event(db, "operation_failed", task.owner_id, task.call_id, error=task.error_code, stage=task.step)
                 task.updated_at = utcnow()
                 db.commit()
     work.add_done_callback(finished)

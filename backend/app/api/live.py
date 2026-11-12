@@ -15,6 +15,7 @@ from app.services.calls import persist_call
 from app.services.doubao import RealtimeSession, VoiceError
 from app.services.store import get_call, owner_from_session, save_audio, COOKIE
 from app.services.timeline import TimelineCapture
+from app.services.analytics import server_event
 
 router = APIRouter()
 
@@ -49,6 +50,8 @@ async def live(websocket: WebSocket, call_id: str) -> None:
             await websocket.close()
             return
         await websocket.send_json({"type": "ready"})
+        server_event(db, "call_connected", owner, call.id)
+        db.commit()
         user_pcm = bytearray()
         timeline = TimelineCapture()
         capture_complete = False

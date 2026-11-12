@@ -1,0 +1,18 @@
+{
+  "envId": "xhs-titile-d0g1g5e3481a57b71",
+  "functionRoot": ".",
+  "functions": [
+    {
+      "name": "yitan-worker-timer",
+      "dir": "worker-timer",
+      "runtime": "Nodejs20.19",
+      "handler": "index.main",
+      "timeout": 900,
+      "memorySize": 128,
+      "installDependency": false,
+      "triggers": [
+        { "name": "yitan-worker-every-five-minutes", "type": "timer", "config": "0 */5 * * * * *" }
+      ]
+    }
+  ]
+}

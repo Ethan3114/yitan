@@ -36,6 +36,8 @@ def current_owner(request: Request, db: Session = Depends(db_session)) -> str | 
 @router.post("/auth/login")
 def login(body: LoginIn, request: Request, db: Session = Depends(db_session)):
     settings: Settings = request.app.state.settings
+    if settings.deployment_mode != "local":
+        return error_response(403, "password_login_required", "请使用账号和密码登录")
     if body.code != settings.invite_code:
         return error_response(401, "invite_invalid", "邀请码不正确")
     row = store.login_owner(db, settings.session_days)
@@ -49,6 +51,7 @@ def logout(request: Request, db: Session = Depends(db_session)):
     store.delete_session(db, request.cookies.get(store.COOKIE))
     response = Response(content='{"ok":true}', media_type="application/json")
     response.delete_cookie(store.COOKIE)
+    response.delete_cookie("yitan_visitor")
     return response
 
 

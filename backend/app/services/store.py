@@ -12,7 +12,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.core.crypto import decrypt_bytes, encrypt_bytes
-from app.models import AudioAsset, AuditLog, Call, Owner, Photo, Profile, SessionRow, Transcript, utcnow
+from app.services.analytics import server_event
+from app.models import Account, AudioAsset, AuditLog, Call, Owner, Photo, Profile, SessionRow, Transcript, utcnow
 
 COOKIE = "yitan_session"
 MAX_PHOTO = 10 * 1024 * 1024
@@ -72,6 +73,9 @@ def owner_from_session(db: Session, session_id: str | None) -> str | None:
         expires = expires.replace(tzinfo=timezone.utc)
     if expires < datetime.now(timezone.utc):
         return None
+    account = db.scalar(select(Account).where(Account.owner_id == row.owner_id))
+    if account is not None and not account.enabled:
+        return None
     return row.owner_id
 
 
@@ -92,6 +96,7 @@ def add_audit(db: Session, owner_id: str, action: str, result: str) -> None:
 def create_profile(db: Session, owner_id: str, fields: dict) -> Profile:
     row = Profile(id=new_id(), owner_id=owner_id, **fields)
     db.add(row)
+    server_event(db, "profile_created", owner_id, row.id)
     db.commit()
     db.refresh(row)
     return row

@@ -41,12 +41,12 @@ def format_turns(paragraphs: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def _client(settings: Settings) -> AcsClient:
+def _client(settings: Settings, *, auto_retry: bool = True) -> AcsClient:
     credential = AccessKeyCredential(
         settings.alibaba_cloud_access_key_id.strip(),
         settings.alibaba_cloud_access_key_secret.strip(),
     )
-    return AcsClient(region_id="cn-beijing", credential=credential)
+    return AcsClient(region_id="cn-beijing", credential=credential, auto_retry=auto_retry, connect_timeout=10, timeout=60)
 
 
 def _call(client: AcsClient, method: str, uri: str, body: dict | None = None, query: dict | None = None) -> dict:

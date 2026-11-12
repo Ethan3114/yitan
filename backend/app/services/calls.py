@@ -9,6 +9,7 @@ from app.models import Call
 from app.services.doubao import VoiceError, transcribe_pcm
 from app.services.redact import redact_sensitive
 from app.services.store import finish_call, save_audio, save_transcript
+from app.services.analytics import server_event
 
 
 async def persist_call(
@@ -32,6 +33,8 @@ async def persist_call(
     if side_text:
         save_transcript(db, call.owner_id, call.id, "side", redact_sensitive(side_text))
     if failure is not None:
+        server_event(db, "operation_failed", call.owner_id, call.id, error=failure.code, stage="call")
         finish_call(db, call, "failed", failure.code)
     else:
+        server_event(db, "recording_saved", call.owner_id, call.id, duration=len(user_pcm) // 32000)
         finish_call(db, call, "ready")

@@ -1,0 +1,12 @@
+.env*
+.venv
+__pycache__
+.pytest_cache
+tests
+migrations
+*.db
+*.sqlite
+*.pem
+*.log
+data
+.intermediate

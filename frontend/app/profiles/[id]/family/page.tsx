@@ -8,6 +8,7 @@ import { api, messageFor } from "@/lib/api";
 import { managementSchema, previewSchema } from "@/lib/family";
 import { photosSchema, profileSchema, dateLabel } from "@/lib/models";
 import { useResource } from "@/lib/use-resource";
+import { AccessNote } from "@/components/access-note";
 export default function Family({ params: promise }: { params: Promise<{ id: string }> }) {
   const { id } = use(promise);
   const profile = useResource(`/api/v1/profiles/${id}`, profileSchema);
@@ -46,7 +47,7 @@ export default function Family({ params: promise }: { params: Promise<{ id: stri
       <button className="secondary" disabled={busy || !chapters.length} onClick={() => void run(async () => setPreview(previewSchema.parse(await api(`/api/v1/profiles/${id}/family/preview`, { method: "POST", body: JSON.stringify(selection) }))))}>预览给家人看的内容</button>
       {preview ? <div className="card section"><SharedBookPreview book={preview.book} /><button className="primary" disabled={busy} onClick={() => void run(async () => { await api(`/api/v1/profiles/${id}/family/publish`, { method: "POST", body: JSON.stringify({ ...selection, digest: preview.digest, request_id: requestId.current }) }); setPreview(null); requestId.current = uuid(); family.reload(); })}>确认展示这些内容</button></div> : null}
     </section> : null}
-    <section className="card section"><h2>邀请家人</h2><p className="small-text muted section">双方连接同一 Wi-Fi，电脑保持运行。每份邀请供一位家人使用，7 天内有效。请用手机访问地址打开本页再复制邀请。</p>
+    <section className="card section"><h2>邀请家人</h2><p className="small-text muted section"><AccessNote />每份邀请供一位家人使用，7 天内有效。</p>
       <label className="consent"><input type="checkbox" checked={inviteAudio} disabled={!family.data?.publication?.allow_audio} onChange={e => { setInviteAudio(e.target.checked); inviteId.current = uuid(); }} />允许这位家人听原声</label>
       <button className="primary" disabled={busy || !family.data?.publication} onClick={() => void run(async () => {
         if (["localhost", "127.0.0.1"].includes(window.location.hostname)) { setMessage("请从手机可访问的局域网地址打开本页，再创建邀请。"); return; }

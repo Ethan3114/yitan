@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     app_port: int = 8011
     web_origin: str = "http://127.0.0.1:3011"
     session_days: int = 30
+    deployment_mode: str = "local"
+    cookie_secure: bool = False
+    auth_pepper: str = ""
+    cloudbase_env_id: str = ""
+    cloudbase_api_key: str = ""
+    proxy_shared_secret: str = ""
+    worker_token: str = ""
+    worker_url: str = ""
 
     @property
     def data_path(self) -> Path:

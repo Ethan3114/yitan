@@ -1,5 +1,5 @@
 "use client";
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { Shell, Status } from "@/components/shell";
 import { api, messageFor } from "@/lib/api";
 import { CallRecording } from "@/components/call-recording";
@@ -14,6 +14,13 @@ export default function Reader({ params: paramsPromise }: { params: Promise<{ id
   const [busy, setBusy] = useState(false);
   const [scores, setScores] = useState<Record<string, number>>({});
   const [details, setDetails] = useState<Record<string, string>>({});
+  const chapterId = data?.chapter.id;
+  useEffect(() => {
+    if (!chapterId) return;
+    void api(`/api/v1/chapters/${chapterId}/read`, { method: "POST" }).catch(() => {
+      sessionStorage.setItem("yitan.analyticsFailures", String(Number(sessionStorage.getItem("yitan.analyticsFailures") || "0") + 1));
+    });
+  }, [chapterId]);
   async function fact(id: string, status: string) {
     setBusy(true); setMessage("");
     try { await api(`/api/v1/facts/${id}`, { method: "POST", body: JSON.stringify({ status, detail: details[id] ?? "" }) }); reload(); }
