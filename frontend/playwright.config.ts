@@ -5,7 +5,7 @@ export default defineConfig({
   outputDir: "../.intermediate/book-tests",
   workers: 1,
   reporter: "line",
-  webServer: {
+  webServer: process.env.CHECK_URL ? undefined : {
     command: "node server.mjs",
     env: { PORT: "3012", NODE_ENV: "production" },
     url: "http://127.0.0.1:3012/books",

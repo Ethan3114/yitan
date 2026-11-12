@@ -29,6 +29,9 @@ def ingest(body: EventIn, request: Request, owner: str | None = Depends(cloud_ow
             "p_stage": str(body.step) if body.step is not None else "",
             "p_visitor_id": token, "p_new_visitor_id": secrets.token_urlsafe(32), "p_owner_id": owner,
             "p_ip_hash": subject_hash(request, "events-ip", client_address(request)),
+            "p_session_id": str(body.session_id) if body.session_id else None,
+            "p_page_id": body.page_id, "p_page_visit_id": str(body.page_visit_id) if body.page_visit_id else None,
+            "p_duration_ms": body.duration_ms,
         })
     except CloudDatabaseError as exc:
         if exc.code == "23505":
@@ -59,7 +62,7 @@ def record(row: dict):
 
 
 @router.get("/admin/metrics")
-def metrics(request: Request, start: date | None = None, end: date | None = None, admin: dict | None = Depends(cloud_admin)):
+def metrics(request: Request, start: date | None = None, end: date | None = None, include_admin: bool = False, include_test: bool = False, admin: dict | None = Depends(cloud_admin)):
     if admin is None:
         return error_response(403, "forbidden", "仅管理员可以查看运营数据")
     now = utcnow()
@@ -71,11 +74,11 @@ def metrics(request: Request, start: date | None = None, end: date | None = None
     since = datetime.combine(start, time.min, ZONE).astimezone(timezone.utc)
     until = datetime.combine(end + timedelta(days=1), time.min, ZONE).astimezone(timezone.utc)
     cloud = repository(request)
-    accounts = [record(row) for row in cloud.rows("accounts", columns="id,owner_id,role,created_at", order="created_at.asc,id.asc")]
+    accounts = [record(row) for row in cloud.rows("accounts", columns="id,owner_id,role,created_at,analytics_excluded", order="created_at.asc,id.asc")]
     visitors = {row["id"]: row["owner_id"] for row in cloud.rows("analytics_visitors", columns="id,owner_id", order="id.asc")}
-    previous = [record(row) for row in cloud.rows("analytics_events", filters={"name": "eq.guide_viewed", "stage": "eq.0", "created_at": "lt." + since.isoformat()}, columns="owner_id,visitor_id", order="id.asc")]
+    previous = [record(row) for row in cloud.rows("analytics_events", filters={"created_at": "lt." + since.isoformat()}, order="created_at.asc,id.asc")]
     rows = [record(row) for row in cloud.rows("analytics_events", filters={"and": "(created_at.gte." + since.isoformat() + ",created_at.lt." + min(until + timedelta(days=31), now).isoformat() + ")"}, order="created_at.asc,id.asc")]
-    result = summarize_records(accounts, visitors, previous, rows, since, until, now)
+    result = summarize_records(accounts, visitors, previous, rows, since, until, now, include_admin=include_admin, include_test=include_test)
     states = Counter(row["status"] for row in cloud.rows("draft_tasks", columns="status", order="id.asc"))
     result["tasks"] = [{"status": status, "count": count} for status, count in sorted(states.items())]
     return result

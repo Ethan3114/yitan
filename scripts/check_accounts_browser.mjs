@@ -21,7 +21,7 @@ try {
   assert.equal(await page.getByRole("button", { name: "创建邀请码", exact: true }).count(), 0);
   await context.close();
 
-  const admin = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const admin = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   const dashboard = await admin.newPage();
   dashboard.on("pageerror", error => errors.push(error.name));
   await dashboard.goto(`${origin}/login`);
@@ -30,25 +30,27 @@ try {
   await dashboard.getByRole("button", { name: "翻开我的回忆录" }).click();
   await dashboard.waitForURL(origin + "/");
   await dashboard.goto(`${origin}/admin`);
-  await dashboard.getByRole("heading", { name: "找到用户停下的位置" }).waitFor();
-  await dashboard.getByRole("button", { name: "分阶段转化", exact: true }).click();
-  await dashboard.getByRole("heading", { name: "从第一次翻书，到读到自己的故事" }).waitFor();
-  assert.equal(await dashboard.locator(".admin-funnel li").count(), 13);
-  await dashboard.locator(".admin-funnel li button").first().click();
-  await dashboard.getByText("进入上一步 1，完成本步 1。", { exact: false }).waitFor();
-  await dashboard.getByRole("button", { name: "用户留存", exact: true }).click();
-  assert.equal(await dashboard.getByRole("cell", { name: "待观察", exact: true }).count(), 3);
-  for (const width of [320, 390, 430]) {
-    await dashboard.setViewportSize({ width, height: 844 });
+  await dashboard.getByRole("heading", { name: "体验总览", exact: true }).waitFor();
+  await dashboard.locator(".admin-kpi").first().waitFor();
+  assert(await dashboard.locator(".admin-workspace").evaluate(element => element.getBoundingClientRect().width) > 1200);
+  await dashboard.getByRole("button", { name: /^体验转化/ }).click();
+  await dashboard.getByRole("heading", { name: "体验阶段到达", exact: true }).waitFor();
+  assert.equal(await dashboard.locator(".admin-sequence li").count(), 13);
+  await dashboard.locator(".admin-sequence li button").first().click();
+  await dashboard.getByText("上一步 1 人，本步 1 人", { exact: false }).waitFor();
+  await dashboard.getByRole("button", { name: /^回访留存/ }).click();
+  assert.equal(await dashboard.locator(".admin-retention-bars strong").filter({ hasText: "待观察" }).count(), 3);
+  for (const width of [1024, 1440, 1920]) {
+    await dashboard.setViewportSize({ width, height: 1000 });
     const bounds = await dashboard.evaluate(() => ({ viewport: innerWidth, width: document.documentElement.scrollWidth }));
     assert(bounds.width <= bounds.viewport + 1, `后台页面在 ${width}px 出现横向溢出`);
   }
-  await dashboard.getByRole("button", { name: "账户邀请", exact: true }).click();
+  await dashboard.getByRole("button", { name: /^账户与邀请/ }).click();
   await dashboard.getByRole("heading", { name: "家庭账户", exact: true }).waitFor();
   await dashboard.getByText("browser-verification-family", { exact: true }).waitFor();
   assert.deepEqual(errors, []);
   await admin.close();
-  console.log("手机浏览器注册、登录、权限、漏斗、留存、账户及三种宽度检查通过");
+  console.log("真实浏览器注册登录、权限、电脑后台转化留存与账户管理检查通过");
 } finally {
   await browser.close();
 }

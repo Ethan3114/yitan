@@ -9,8 +9,9 @@ import { Shell, Status } from "@/components/shell";
 import { BookCover } from "@/components/book-cover";
 import { useHydrated } from "@/lib/use-hydrated";
 
-export default function LoginPage({ searchParams }: { searchParams: Promise<{ for?: string }> }) {
+export default function LoginPage({ searchParams }: { searchParams: Promise<{ for?: string; next?: string }> }) {
   const query = use(searchParams);
+  const returnTo = query.next === "/admin" ? "/admin" : undefined;
   const recordFor = ["self", "mother", "father", "family"].includes(query.for ?? "") ? query.for : undefined;
   const router = useRouter();
   const hydrated = useHydrated();
@@ -38,7 +39,7 @@ export default function LoginPage({ searchParams }: { searchParams: Promise<{ fo
     setBusy(true); setMessage("");
     const form = new FormData(event.currentTarget);
     const body = localMode ? { code: String(form.get("code")) } : { username: String(form.get("username")), password: String(form.get("password")) };
-    try { await api(localMode ? "/api/v1/auth/login" : "/api/v1/auth/password-login", { method: "POST", body: JSON.stringify(body) }); router.push(recordFor ? `/profiles?new=1&for=${recordFor}` : "/"); }
+    try { await api(localMode ? "/api/v1/auth/login" : "/api/v1/auth/password-login", { method: "POST", body: JSON.stringify(body) }); router.push(returnTo ?? (recordFor ? `/profiles?new=1&for=${recordFor}` : "/")); }
     catch (error) { setMessage(messageFor(error)); setBusy(false); }
   }
   return <Shell title="忆谈" subtitle="把日子，慢慢讲成一本书" nav={false}>

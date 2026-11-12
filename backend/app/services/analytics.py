@@ -40,18 +40,21 @@ def aware(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
-def summarize(db: Session, since: datetime, until: datetime, now: datetime) -> dict:
+def summarize(db: Session, since: datetime, until: datetime, now: datetime, *, include_admin=False, include_test=False) -> dict:
     accounts = list(db.scalars(select(Account)))
     visitors = {row.id: row.owner_id for row in db.scalars(select(AnalyticsVisitor))}
-    previous = list(db.scalars(select(AnalyticsEvent).where(AnalyticsEvent.name == "guide_viewed", AnalyticsEvent.stage == "0", AnalyticsEvent.created_at < since)))
+    previous = list(db.scalars(select(AnalyticsEvent).where(AnalyticsEvent.created_at < since).order_by(AnalyticsEvent.created_at, AnalyticsEvent.id)))
     rows = list(db.scalars(select(AnalyticsEvent).where(AnalyticsEvent.created_at >= since, AnalyticsEvent.created_at < min(until + timedelta(days=31), now)).order_by(AnalyticsEvent.created_at, AnalyticsEvent.id)))
-    return summarize_records(accounts, visitors, previous, rows, since, until, now)
+    return summarize_records(accounts, visitors, previous, rows, since, until, now, include_admin=include_admin, include_test=include_test)
 
 
-def summarize_records(accounts, visitors: dict[str, str | None], previous, rows, since: datetime, until: datetime, now: datetime) -> dict:
-    excluded = {account.owner_id for account in accounts if account.role == "admin"}
+def summarize_records(accounts, visitors: dict[str, str | None], previous, rows, since: datetime, until: datetime, now: datetime, *, include_admin=False, include_test=False) -> dict:
+    from app.services.journey import summarize_journey
+    excluded = {account.owner_id for account in accounts if (account.role == "admin" and not include_admin) or (getattr(account, "analytics_excluded", False) and not include_test)}
     previous_entries = set()
     for row in previous:
+        if row.name != "guide_viewed" or row.stage != "0":
+            continue
         owner = row.owner_id or visitors.get(row.visitor_id)
         previous_entries.add("account:" + owner if owner else "visitor:" + str(row.visitor_id))
     actors: dict[str, list[AnalyticsEvent]] = {}
@@ -111,4 +114,6 @@ def summarize_records(accounts, visitors: dict[str, str | None], previous, rows,
             active = any(row.name in {"call_connected", "memoir_read", "family_read"} and aware(row.created_at).astimezone(ZONE).date() == target for row in actors.get("account:" + account.owner_id, []))
             retained += int(active)
         retention.append({"day": day, "eligible": eligible, "retained": retained, "rate": retained / eligible if eligible else None})
-    return {"timezone": "Asia/Shanghai", "since": since.isoformat(), "until": until.isoformat(), "as_of": now.isoformat(), "latest_event_at": latest.isoformat() if latest else None, "funnel": funnel, "observing_cohorts": pending, "retention": retention, "activity": {name: len(identities) for name, identities in names.items()}, "failures": [{"stage": key[0], "code": key[1], "count": count} for key, count in sorted(failures.items())], "excluded_admin_accounts": len(excluded), "measurement_version": 1}
+    journey = summarize_journey(accounts, visitors, previous, rows, since, until, now, include_admin=include_admin, include_test=include_test)
+    journey["retention"] = retention
+    return {"timezone": "Asia/Shanghai", "since": since.isoformat(), "until": until.isoformat(), "as_of": now.isoformat(), "latest_event_at": latest.isoformat() if latest else None, "funnel": funnel, "observing_cohorts": pending, "retention": retention, "activity": {name: len(identities) for name, identities in names.items()}, "failures": [{"stage": key[0], "code": key[1], "count": count} for key, count in sorted(failures.items())], "excluded_admin_accounts": sum(account.role == "admin" for account in accounts), "measurement_version": 2, "journey": journey}

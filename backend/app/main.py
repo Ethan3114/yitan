@@ -19,7 +19,7 @@ from app.api.analytics import router as analytics_router
 from app.core.config import Settings, get_settings
 from app.core.crypto import build_fernet
 from app.core.errors import error_body
-from app.db import ensure_dirs, make_engine, make_session_factory
+from app.db import ensure_analytics_columns, ensure_dirs, make_engine, make_session_factory
 from app.models import Base
 from app.services.tasks import recover_interrupted
 from app.services.cloudbase import CloudRepository
@@ -61,6 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ensure_dirs(settings)
         engine = make_engine(settings.sqlalchemy_url)
         Base.metadata.create_all(engine)
+        ensure_analytics_columns(engine)
         app.state.db_factory = make_session_factory(engine)
         recover_interrupted(app.state.db_factory)
         for router in [http_router, live_router, mobile_router, family_router, editions_router, accounts_router, analytics_router]:

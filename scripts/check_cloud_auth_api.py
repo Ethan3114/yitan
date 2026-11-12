@@ -170,6 +170,7 @@ def main():
             if event and event["visitor_id"]:
                 visitor_ids.add(event["visitor_id"])
         for visitor_id in visitor_ids:
+            cloud.remove("analytics_browser_sessions", {"visitor_id": "eq." + visitor_id})
             cloud.remove("analytics_visitors", {"id": "eq." + visitor_id})
         for username in [username_a, username_b]:
             account = cloud.one("accounts", filters={"username": "eq." + username}, columns="owner_id")
@@ -177,6 +178,7 @@ def main():
                 owned.append(account["owner_id"])
         for owner_id in owned:
             for visitor in cloud.rows("analytics_visitors", filters={"owner_id": "eq." + owner_id}, columns="id", order="id.asc"):
+                cloud.remove("analytics_browser_sessions", {"visitor_id": "eq." + visitor["id"]})
                 cloud.remove("analytics_events", {"visitor_id": "eq." + visitor["id"]})
             for table in ["analytics_events", "audit_logs", "sessions"]:
                 cloud.remove(table, {"owner_id": "eq." + owner_id})

@@ -78,6 +78,7 @@ def main():
                     if response.status_code not in {200, 204, 404}:
                         raise RuntimeError("验收文件清理未完成")
         for visitor in cloud.rows("analytics_visitors", filters={"owner_id": "eq." + owner}, columns="id", order="id.asc"):
+            cloud.remove("analytics_browser_sessions", {"visitor_id": "eq." + visitor["id"]})
             cloud.remove("analytics_events", {"visitor_id": "eq." + visitor["id"]})
         for table in ["family_comments", "family_invites", "family_members", "family_publications", "writing_cache", "writing_runs", "text_editions", "draft_tasks", "audio_chunks", "call_timelines", "call_contexts", "analytics_events", "analytics_visitors", "paragraph_evidence", "paragraphs", "chapters", "transcripts", "audio_assets", "memory_items", "fact_items", "photos", "imports", "private_files", "calls", "audit_logs"]:
             cloud.remove(table, {"owner_id": "eq." + owner})

@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { Suspense } from "react";
+import { ExperienceTracker } from "@/components/experience-tracker";
 import "./globals.css";
 import "./book.css";
 import "./book-introduction.css";
@@ -9,7 +11,7 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, view
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased"><Suspense fallback={null}><ExperienceTracker /></Suspense>{children}</body>
     </html>
   );
 }

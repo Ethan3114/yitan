@@ -28,6 +28,7 @@ class Account(Base):
     password_hash: Mapped[str] = mapped_column(String(256))
     role: Mapped[str] = mapped_column(String(20), default="member")
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    analytics_excluded: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -57,6 +58,13 @@ class AnalyticsVisitor(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+class AnalyticsBrowserSession(Base):
+    __tablename__ = "analytics_browser_sessions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    visitor_id: Mapped[str] = mapped_column(ForeignKey("analytics_visitors.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
 class AnalyticsEvent(Base):
     __tablename__ = "analytics_events"
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -68,6 +76,10 @@ class AnalyticsEvent(Base):
     error_code: Mapped[str] = mapped_column(String(48), default="")
     entity_id: Mapped[str] = mapped_column(String(64), default="")
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    session_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)
+    page_id: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    page_visit_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, index=True)
 

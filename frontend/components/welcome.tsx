@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { BookCover } from "./book-cover";
+import { PageBook, type BookLeaf, type PageBookHandle } from "./page-book";
 
 const pages = [
   { label: "忆谈 · 口述回忆录", title: "把一生的故事，\n留在一本书里。", copy: "", scene: "" },
@@ -14,19 +15,38 @@ const pages = [
 ];
 
 export function Welcome({ step }: { step: number }) {
-  useEffect(() => { track("guide_viewed", step); }, [step]);
-  const content = pages[step];
+  const [current, setCurrent] = useState(step);
+  const [busy, setBusy] = useState(true);
+  const book = useRef<PageBookHandle>(null);
+  useEffect(() => { track("guide_viewed", current); }, [current]);
+  useEffect(() => {
+    function restorePage() {
+      const value = Number(new URLSearchParams(window.location.search).get("step") ?? 0);
+      if (Number.isInteger(value) && value >= 0 && value < pages.length) setCurrent(value);
+    }
+    window.addEventListener("popstate", restorePage);
+    return () => window.removeEventListener("popstate", restorePage);
+  }, []);
+  const leaves = useMemo<BookLeaf[]>(() => pages.map((content, index) => ({ key: String(index), label: content.label, hard: index === 0, content:
+    <section className={`guide-leaf ${index === 0 ? "guide-cover" : ""} ${index === 5 ? "guide-title-page" : ""}`} aria-label={content.label} style={content.scene ? { backgroundImage: `linear-gradient(to bottom, #faf3e7 0%, #faf3e7ed 30%, #faf3e720 62%), url('/images/${content.scene}.png')` } : undefined}>
+      {index === 0 ? <><p className="guide-imprint">口述回忆录</p><BookCover title="忆谈" /><h1>{content.title}</h1><p className="guide-signature">每个人的一生，都值得成书。</p></> : <div className="guide-copy"><p className="guide-label">{content.label}</p><h1>{content.title}</h1><p>{content.copy}</p>
+        {index === 3 ? <div className="guide-book-links"><Link href="/books/li">李奶奶的故事 · 开篇节选 ›</Link></div> : null}
+        {index === 5 ? <div className="guide-role-options">{[["self", "为自己记录"], ["mother", "为妈妈记录"], ["father", "为爸爸记录"], ["family", "为其他家人记录"]].map(([value, label]) => <Link key={value} href={`/login?for=${value}`}><span>{label}</span><span aria-hidden="true">›</span></Link>)}</div> : null}
+      </div>}
+      <span className="guide-folio" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+    </section>
+  })), []);
   return <main className="book-introduction" data-design="book-second">
-    <header className="book-introduction-nav"><Link href={step ? `/welcome?step=${step - 1}` : "/login"}>{step ? "‹ 返回" : "忆谈"}</Link><Link href="/login">已有回忆录</Link></header>
+    <header className="book-introduction-nav">{current ? <button type="button" disabled={busy} onClick={() => book.current?.turnTo(current - 1)}>‹ 返回</button> : <Link href="/login">忆谈</Link>}<Link href="/login">已有回忆录</Link></header>
     <div className="guide-binding">
-      <section key={step} className={`guide-leaf ${step === 0 ? "guide-cover" : ""} ${step === 5 ? "guide-title-page" : ""}`} aria-label={content.label} style={content.scene ? { backgroundImage: `linear-gradient(to bottom, #faf3e7 0%, #faf3e7ed 30%, #faf3e720 62%), url('/images/${content.scene}.png')` } : undefined}>
-        {step === 0 ? <><p className="guide-imprint">口述回忆录</p><BookCover title="忆谈" /><h1>{content.title}</h1><p className="guide-signature">每个人的一生，都值得成书。</p></> : <div className="guide-copy"><p className="guide-label">{content.label}</p><h1>{content.title}</h1><p>{content.copy}</p>
-          {step === 3 ? <div className="guide-book-links"><Link href="/books">翻阅真实回忆录节选 ›</Link></div> : null}
-          {step === 5 ? <div className="guide-role-options">{[["self", "为自己记录"], ["mother", "为妈妈记录"], ["father", "为爸爸记录"], ["family", "为其他家人记录"]].map(([value, label]) => <Link key={value} href={`/login?for=${value}`}><span>{label}</span><span aria-hidden="true">›</span></Link>)}</div> : null}
-        </div>}
-        <span className="guide-folio">{String(step + 1).padStart(2, "0")}</span>
-      </section>
+      <PageBook ref={book} leaves={leaves} page={current} className="guide-page-book" onBusyChange={setBusy} onPageChange={index => {
+        setCurrent(index);
+        const destination = `/welcome?step=${index}`;
+        const previous = Number(new URLSearchParams(window.location.search).get("step") ?? 0);
+        if (index !== previous || (window.location.pathname !== "/welcome" && index !== 0)) window.history.pushState(null, "", destination);
+      }} />
     </div>
-    <footer className="guide-controls">{step > 0 ? <Link href={`/welcome?step=${step - 1}`}>上一页</Link> : <span />}{step < 5 ? <Link className="primary" href={`/welcome?step=${step + 1}`}>{step === 0 ? "翻开这本书" : "下一页 ›"}</Link> : <Link href="/books">翻阅真实回忆录 ›</Link>}</footer>
+    <p className="book-page-announcement" aria-live="polite">第 {current + 1} 页，共 {pages.length} 页</p>
+    <footer className="guide-controls">{current > 0 ? <button type="button" disabled={busy} onClick={() => book.current?.turnTo(current - 1)}>上一页</button> : <span />}{current < 5 ? <button type="button" className="primary" disabled={busy} onClick={() => book.current?.turnTo(current + 1)}>{current === 0 ? "翻开这本书" : "下一页 ›"}</button> : <Link href="/books">翻阅真实回忆录 ›</Link>}</footer>
   </main>;
 }
