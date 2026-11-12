@@ -1,0 +1,61 @@
+.companion {
+  width: clamp(136px, 38vw, 168px);
+  aspect-ratio: 192 / 196;
+  flex: none;
+  margin-inline: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
+.portrait {
+  --interviewer-mouth: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.halo {
+  opacity: .38;
+}
+
+.smile {
+  opacity: calc(1 - var(--interviewer-mouth) * .85);
+}
+
+.openMouth {
+  opacity: var(--interviewer-mouth);
+  transform-box: fill-box;
+  transform-origin: center;
+  transform: scaleY(calc(.12 + var(--interviewer-mouth) * .88));
+}
+
+.companion[data-status="speaking"] .halo {
+  opacity: .62;
+}
+
+.companion[data-status="thinking"] .brows {
+  transform: translateY(-1px);
+}
+
+.companion[data-status="paused"] .ribbon,
+.companion[data-status="failed"] .ribbon {
+  fill: #AA9C83;
+}
+
+.companion[data-status="paused"] .halo,
+.companion[data-status="saving"] .halo,
+.companion[data-status="failed"] .halo {
+  opacity: .24;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .smile {
+    opacity: 1;
+  }
+
+  .openMouth {
+    opacity: 0;
+    transform: none;
+  }
+}

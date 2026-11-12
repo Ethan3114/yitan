@@ -1,0 +1,21 @@
+.transcript { margin: 18px 0 0; min-width: 0; border: 1px solid #e3d9c8; border-radius: 20px; background: #fffdf8; overflow: hidden; }
+.toolbar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #eee5d8; }
+.toolbar h3 { flex: 1; font-size: 16px; color: #584a3f; }
+.toolbar button { min-height: 44px; border: 0; padding: 8px 10px; border-radius: 12px; background: transparent; color: #6e5227; font-size: 15px; white-space: nowrap; }
+.sizeButton { display: flex; align-items: center; gap: 5px; }
+.sizeButton[aria-pressed=true] { background: #eee3d1; }
+.historyButton { text-decoration: underline; text-underline-offset: 4px; }
+.messages { max-height: 234px; min-height: 110px; overflow-y: auto; overscroll-behavior: contain; padding: 14px; scrollbar-gutter: stable; }
+.transcript[data-expanded=true] .messages { max-height: min(47dvh, 440px); }
+.message + .message { margin-top: 18px; padding-top: 15px; border-top: 1px solid #eee5d8; }
+.message header { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-bottom: 7px; }
+.message header strong { font-size: 15px; color: #715326; }
+.message[data-role=user] header strong { color: #47604d; }
+.message header span { font-size: 12px; color: #786d60; }
+.message p { margin: 0; font-size: 21px; line-height: 1.75; color: #302b26; overflow-wrap: anywhere; white-space: pre-wrap; }
+.transcript[data-large=true] .message p { font-size: 26px; line-height: 1.8; }
+.message small { display: block; margin-top: 8px; font-size: 12px; line-height: 1.6; color: #786d60; }
+.empty { padding: 14px 0; font-size: 18px; line-height: 1.8; color: #786d60; }
+.note { margin: 0; padding: 9px 14px; border-top: 1px solid #eee5d8; font-size: 12px; color: #786d60; }
+.latest { width: calc(100% - 28px); min-height: 44px; margin: 0 14px 12px; display: flex; align-items: center; justify-content: center; gap: 6px; background: #f2eadb; color: #68502a; border: 1px solid #e1d3bc; border-radius: 14px; font-size: 15px; }
+@media (max-width: 359px) { .toolbar { padding-inline: 8px; gap: 2px; } .toolbar button { padding-inline: 7px; } .toolbar h3 { font-size: 15px; } }

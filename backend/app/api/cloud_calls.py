@@ -290,7 +290,7 @@ async def live(websocket: WebSocket, call_id: str):
                 parts.append({"kind": kind, "sequence": sequences[kind], "file_id": file_id, "size_bytes": len(delta)})
                 saved_positions[kind] += len(delta)
                 saved_sequences[kind] += 1
-            payload = {"version": 1, "clock": "browser_audio_render", "sample_rate": 16000, "frames": timeline.next_seq, "duration_ms": len(timeline.pcm) / 32, "complete": capture_complete, "events": timeline.events, "provider_events": dict(session.event_counts), "opening_requested": session.opening_requested, "first_audio_received": session.first_audio.is_set()}
+            payload = {"version": 1, "clock": "browser_audio_render", "sample_rate": 16000, "frames": timeline.next_seq, "duration_ms": len(timeline.pcm) / 32, "complete": capture_complete, "events": timeline.events, "provider_events": dict(session.event_counts), "provider_event_metadata": session.event_metadata, "opening_requested": session.opening_requested, "first_audio_received": session.first_audio.is_set(), "captions": session.captions.snapshot()}
             encoded = app.state.fernet.encrypt(json.dumps(payload).encode()).decode()
             texts = {"realtime_user": redact_sensitive("".join(session.user_text)), "realtime_assistant": redact_sensitive("".join(session.assistant_text))}
             saved = await asyncio.to_thread(repository.rpc, "call_checkpoint", {"p_owner": owner, "p_call": call_id, "p_token": token, "p_chunks": parts, "p_texts": texts, "p_timeline": encoded, "p_status": status, "p_error": error})
@@ -314,6 +314,7 @@ async def live(websocket: WebSocket, call_id: str):
                 if len(timeline.events) >= 50000:
                     raise ValueError("时间轴事件超过限制")
                 timeline.event(message)
+                session.captions.playback_event(message)
             elif message.get("type") == "audio":
                 chunk = base64.b64decode(message.get("pcm", ""), validate=True)
                 if not chunk or len(chunk) > 16000 or len(chunk) % 2:
@@ -359,7 +360,8 @@ async def live(websocket: WebSocket, call_id: str):
         jobs = [uploader, downloader, saver, opening_guard]
         await websocket.send_json({"type": "ready"})
         await websocket.send_json({"type": "opening_requested"})
-        await session.say(opening_greeting(opening.spoken))
+        for message in await session.say(opening_greeting(opening.spoken)):
+            await websocket.send_json(message)
         waiting = set(jobs)
         while True:
             done, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)

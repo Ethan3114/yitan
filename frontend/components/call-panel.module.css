@@ -1,0 +1,15 @@
+.panel { min-width: 0; }
+.host { display: flex; align-items: center; gap: 12px; margin: 10px 0 18px; }
+.host > :first-child { width: 130px; flex: 0 0 130px; }
+.host > div:last-child { min-width: 0; }
+.host h2 { margin-top: 7px; font-size: 23px; line-height: 1.5; overflow-wrap: anywhere; }
+.host p { margin-top: 8px; font-size: 16px; line-height: 1.75; color: #716356; }
+.identity { font-size: 12px; letter-spacing: .04em; color: #755932; }
+.callInfo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 15px; border: 1px solid #e6dccc; border-radius: 14px; background: #fbf7ef; }
+.recording { display: flex; align-items: center; gap: 7px; font-size: 14px; color: #77534b; }
+.recording i { width: 7px; height: 7px; border-radius: 50%; background: #a14d3a; }
+.timer { font-size: 18px; font-variant-numeric: tabular-nums; letter-spacing: .06em; color: #625447; }
+.controls { position: sticky; bottom: 0; z-index: 5; padding: 16px 0 max(12px, env(safe-area-inset-bottom)); background: linear-gradient(#fbf7ef00, #fbf7ef 16px); margin-top: 5px; }
+.end { background: #855044; border-color: #855044; box-shadow: none; }
+.panel[data-call-phase=connecting] .recording { visibility: hidden; }
+@media (max-width: 359px) { .host { gap: 8px; } .host > :first-child { width: 108px; flex-basis: 108px; } .host h2 { font-size: 21px; } .host p { font-size: 15px; } }

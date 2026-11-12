@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+import hashlib
 import json
 import uuid
 from pathlib import Path
@@ -10,6 +11,7 @@ import websockets
 
 from app.core.config import Settings
 from app.services.asr_codec import decode_frame, encode_audio, encode_full_client
+from app.services.realtime_captions import RealtimeCaptions
 
 PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "interviewer.txt"
 
@@ -71,8 +73,11 @@ class RealtimeSession:
         self.assistant_text: list[str] = []
         self.assistant_pcm = bytearray()
         self.event_counts: dict[str, int] = {}
+        self.event_metadata: list[dict] = []
+        self._provider_sequence = 0
         self.first_audio = asyncio.Event()
         self.opening_requested = False
+        self.captions = RealtimeCaptions()
         self._ws = None
 
     async def connect(self, opening: str = "", background: str = ""):
@@ -99,12 +104,15 @@ class RealtimeSession:
             raise VoiceError("voice_rejected", "语音服务拒绝了这次通话")
         return created
 
-    async def say(self, text: str) -> None:
-        spoken = text.strip()
+    async def say(self, text: str) -> list[dict]:
+        spoken = text.strip()[:200]
         if not spoken:
-            return
-        await asyncio.wait_for(self._ws.send(json.dumps({"type": "speech_text_buffer.commit", "event_id": str(uuid.uuid4()), "text": spoken[:200]})), timeout=5)
+            return []
+        event_id = str(uuid.uuid4())
+        user_generation, assistant_boundary = len(self.captions.users), len(self.captions.assistants)
+        await asyncio.wait_for(self._ws.send(json.dumps({"type": "speech_text_buffer.commit", "event_id": event_id, "text": spoken})), timeout=5)
         self.opening_requested = True
+        return self.captions.request_script(event_id, spoken, user_generation, assistant_boundary)
 
     async def wait_for_first_audio(self) -> None:
         try:
@@ -139,7 +147,9 @@ class RealtimeSession:
 
     async def request_finish(self) -> None:
         await self._ws.send(json.dumps({"type": "input_audio_mute.commit", "event_id": str(uuid.uuid4())}))
-        await self._ws.send(json.dumps({"type": "response.cancel", "event_id": str(uuid.uuid4())}))
+        cancel_id = str(uuid.uuid4())
+        self.captions.request_cancel(cancel_id)
+        await self._ws.send(json.dumps({"type": "response.cancel", "event_id": cancel_id}))
         await self._ws.send(json.dumps({"type": "session.close", "event_id": str(uuid.uuid4())}))
 
     async def receive_event(self) -> dict:
@@ -167,15 +177,8 @@ class RealtimeSession:
     def _absorb(self, event: dict) -> dict:
         kind = event.get("type", "")
         self.event_counts[kind] = self.event_counts.get(kind, 0) + 1
-        if kind == "conversation.item.input_audio_transcription.delta":
-            delta = event.get("delta") or event.get("text") or ""
-            if delta:
-                self.user_text.append(delta)
-        elif kind == "response.output_text.delta":
-            delta = event.get("delta") or event.get("text") or ""
-            if delta:
-                self.assistant_text.append(delta)
-        elif kind == "response.output_audio.delta":
+        self._record_event_metadata(event)
+        if kind == "response.output_audio.delta":
             chunk = event.get("delta") or event.get("audio") or ""
             if chunk:
                 decoded = base64.b64decode(chunk, validate=True)
@@ -183,7 +186,37 @@ class RealtimeSession:
                     raise VoiceError("voice_audio_invalid", "AI返回的声音格式无效，已经录下的声音会保存")
                 self.assistant_pcm.extend(decoded)
                 self.first_audio.set()
+        event["_client_events"] = self.captions.absorb(event)
+        self.user_text[:] = self.captions.user_text
+        self.assistant_text[:] = self.captions.assistant_text
         return event
+
+    def _record_event_metadata(self, event: dict) -> None:
+        self._provider_sequence += 1
+        kind = event.get("type", "")
+        if len(self.event_metadata) >= 128 or self.event_counts[kind] > 8:
+            return
+        fields, text_lengths, identifiers = {}, {}, {}
+        known_ids = {"query_id", "question_id", "reply_id", "response_id", "event_id"}
+
+        def inspect(value, prefix="", depth=0):
+            if depth > 3 or len(fields) >= 96:
+                return
+            items = value.items() if isinstance(value, dict) else enumerate(value[:2]) if isinstance(value, list) else []
+            for key, child in items:
+                if len(fields) >= 96:
+                    return
+                path = f"{prefix}.{key}" if prefix else str(key)
+                fields[path] = "null" if child is None else "boolean" if isinstance(child, bool) else "string" if isinstance(child, str) else "number" if isinstance(child, (int, float)) else "array" if isinstance(child, list) else "object"
+                if isinstance(child, str) and key in {"text", "transcript", "content", "delta"} and kind != "response.output_audio.delta":
+                    text_lengths[path] = len(child)
+                if key in known_ids and isinstance(child, (str, int)) and not isinstance(child, bool):
+                    identifiers[path] = hashlib.sha256(str(child).encode()).hexdigest()
+                if isinstance(child, (dict, list)):
+                    inspect(child, path, depth + 1)
+
+        inspect(event)
+        self.event_metadata.append({"sequence": self._provider_sequence, "type": kind, "fields": fields, "text_lengths": text_lengths, "id_hashes": identifiers})
 
 
 async def asyncio_wait(ws, timeout: float) -> str | None:

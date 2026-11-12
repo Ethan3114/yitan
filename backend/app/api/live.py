@@ -16,6 +16,7 @@ from app.services.doubao import RealtimeSession, VoiceError, opening_greeting
 from app.services.store import get_call, owner_from_session, save_audio, COOKIE
 from app.services.timeline import TimelineCapture
 from app.services.analytics import server_event
+from app.services.redact import redact_sensitive
 
 router = APIRouter()
 
@@ -52,6 +53,9 @@ async def live(websocket: WebSocket, call_id: str) -> None:
             return
         user_pcm = bytearray()
         timeline = TimelineCapture()
+        timeline.captions = session.captions
+        timeline.provider_events = session.event_counts
+        timeline.provider_event_metadata = session.event_metadata
         capture_complete = False
         last_saved = 0
         failure: VoiceError | None = None
@@ -65,6 +69,7 @@ async def live(websocket: WebSocket, call_id: str) -> None:
                     break
                 if message.get("type") == "timeline":
                     timeline.event(message)
+                    session.captions.playback_event(message)
                     continue
                 if message.get("type") != "audio":
                     continue
@@ -94,7 +99,8 @@ async def live(websocket: WebSocket, call_id: str) -> None:
             db.commit()
             await websocket.send_json({"type": "ready"})
             await websocket.send_json({"type": "opening_requested"})
-            await session.say(opening_greeting(opening.spoken))
+            for message in await session.say(opening_greeting(opening.spoken)):
+                await websocket.send_json(message)
             waiting = {uploader, downloader, opening_guard}
             while True:
                 completed, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
@@ -155,15 +161,23 @@ async def live(websocket: WebSocket, call_id: str) -> None:
 
 
 async def _forward(websocket: WebSocket, event: dict) -> None:
+    if "_client_events" in event:
+        for message in event["_client_events"]:
+            if "text" in message:
+                message = {**message, "text": redact_sensitive(message["text"])}
+                if message.get("type") == "assistant_tts":
+                    message["text_available"] = bool(message["text"])
+            await websocket.send_json(message)
+        return
     kind = event.get("type")
     if kind in {"input_audio_buffer.speech_started", "conversation.item.input_audio_transcription.started"}:
-        await websocket.send_json({"type": "interrupted"})
+        await websocket.send_json({"type": "interrupted", "reason": "user_speech"})
     elif kind == "conversation.item.input_audio_transcription.delta":
-        text = event.get("delta") or event.get("text") or ""
+        text = redact_sensitive(event.get("delta") or event.get("text") or "")
         if text:
             await websocket.send_json({"type": "user_text", "text": text})
     elif kind == "response.output_text.delta":
-        text = event.get("delta") or event.get("text") or ""
+        text = redact_sensitive(event.get("delta") or event.get("text") or "")
         if text:
             await websocket.send_json({"type": "assistant_text", "text": text})
     elif kind == "response.output_audio.delta":

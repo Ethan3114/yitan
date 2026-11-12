@@ -10,11 +10,14 @@ from app.services.store import save_audio
 
 
 class TimelineEvent(BaseModel):
-    kind: Literal["start", "schedule", "interrupt", "suspend", "resume", "stop", "ended", "disconnect"]
+    kind: Literal["start", "schedule", "playback_started", "interrupt", "suspend", "resume", "stop", "ended", "disconnect"]
     at_ms: float = Field(ge=0, le=14400000)
     wall_ms: float = Field(ge=0, le=14400000)
     duration_ms: float = Field(default=0, ge=0, le=14400000)
     audio_id: int | None = Field(default=None, ge=0)
+    turn_id: str | None = Field(default=None, min_length=1, max_length=64)
+    segment_id: str | None = Field(default=None, min_length=1, max_length=96)
+    audio_seq: int | None = Field(default=None, ge=0)
 
 
 class CaptureFrame(BaseModel):
@@ -27,6 +30,9 @@ class TimelineCapture:
     def __init__(self):
         self.pcm = bytearray()
         self.events = []
+        self.captions = None
+        self.provider_events = None
+        self.provider_event_metadata = None
         self.next_seq = 0
 
     def append(self, payload: dict):
@@ -55,5 +61,11 @@ class TimelineCapture:
             row = CallTimeline(call_id=call_id, owner_id=owner_id, payload="")
             db.add(row)
         payload = {"version": 1, "clock": "browser_audio_render", "sample_rate": 16000, "frames": self.next_seq, "duration_ms": len(self.pcm) / 32, "complete": complete, "events": self.events}
+        if self.captions is not None:
+            payload["captions"] = self.captions.snapshot()
+        if self.provider_events is not None:
+            payload["provider_events"] = dict(self.provider_events)
+        if self.provider_event_metadata is not None:
+            payload["provider_event_metadata"] = self.provider_event_metadata
         row.payload = fernet.encrypt(json.dumps(payload).encode()).decode()
         db.commit()

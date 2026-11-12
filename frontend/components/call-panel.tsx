@@ -5,6 +5,11 @@ import { v4 as uuid } from "uuid";
 import { api, messageFor, wsUrl } from "@/lib/api";
 import { Status } from "./shell";
 import { track } from "@/lib/analytics";
+import { CallPlayback, callEventSchema, type PlaybackActivity } from "@/lib/call-playback";
+import { captionReducer, createCaptionState, selectVisibleCaptions, type CaptionAction, type CaptionEntry } from "@/lib/call-captions";
+import { InterviewerAvatar, type InterviewerAvatarStatus } from "./interviewer-avatar";
+import { CallTranscript } from "./call-transcript";
+import styles from "./call-panel.module.css";
 
 type Props = { profileId: string; elderName?: string; photoId?: string; voiceReady: boolean; onFinished: () => void };
 type Phase = "idle" | "connecting" | "opening" | "live" | "saving" | "failed";
@@ -15,13 +20,23 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
   const [error, setError] = useState("");
   const [elapsed, setElapsed] = useState(0);
   const [audioBlocked, setAudioBlocked] = useState(false);
-  const resources = useRef<{ socket?: WebSocket; context?: AudioContext; stream?: MediaStream; node?: AudioWorkletNode; sources: Set<AudioBufferSourceNode>; playAt: number; callId?: string; ready: boolean; receivedAudio: boolean }>({ sources: new Set(), playAt: 0, ready: false, receivedAudio: false });
+  const [captions, setCaptions] = useState<readonly CaptionEntry[]>([]);
+  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [playbackActivity, setPlaybackActivity] = useState<PlaybackActivity>("listening");
+  const captionState = useRef(createCaptionState());
+  const resources = useRef<{ socket?: WebSocket; context?: AudioContext; stream?: MediaStream; node?: AudioWorkletNode; playback?: CallPlayback; callId?: string; ready: boolean; receivedAudio: boolean }>({ ready: false, receivedAudio: false });
   const busy = useRef(false);
   const terminal = useRef(false);
   const requestId = useRef("");
   const mounted = useRef(false);
-  const clock = useRef({ origin: 0, wall: 0, gap: 0, gaps: [] as { frame: number; total: number }[], suspended: 0, seq: 0, audioId: 0, stopping: false, finished: false });
-  const timeline = useCallback((kind: string, extra: Record<string, number> = {}) => {
+  const clock = useRef({ origin: 0, wall: 0, gap: 0, gaps: [] as { frame: number; total: number }[], suspended: 0, seq: 0, stopping: false, finished: false });
+  const acceptCaption = useCallback((action: CaptionAction) => {
+    const previous = captionState.current;
+    const next = captionReducer(previous, action);
+    captionState.current = next;
+    if (mounted.current && next.entries !== previous.entries) setCaptions(selectVisibleCaptions(next));
+  }, []);
+  const timeline = useCallback((kind: string, extra: Record<string, number | string> = {}) => {
     const r = resources.current, c = clock.current;
     if (r.ready && r.socket?.readyState === WebSocket.OPEN && r.context) r.socket.send(JSON.stringify({ type: "timeline", kind, at_ms: Math.max(0, (r.context.currentTime - c.origin) * 1000 + c.gap), wall_ms: Math.max(0, performance.now() - c.wall), ...extra }));
   }, []);
@@ -30,7 +45,7 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
     if (c.stopping) return;
     c.stopping = true;
     timeline("stop");
-    r.sources.forEach(source => source.stop()); r.sources.clear();
+    r.playback?.stop();
     r.node?.port.postMessage("flush");
     window.setTimeout(() => {
       if (c.finished || r.socket?.readyState !== WebSocket.OPEN) return;
@@ -46,9 +61,11 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
     clock.current.finished = true;
     r.stream?.getTracks().forEach(track => track.stop());
     r.node?.disconnect();
-    r.sources.forEach(source => source.stop()); r.sources.clear();
+    r.playback?.dispose();
+    if (mounted.current) setAnalyser(null);
     if (r.context && r.context.state !== "closed") void r.context.close();
     r.socket?.close();
+    r.socket = undefined;
   }, [timeline]);
   useEffect(() => {
     mounted.current = true;
@@ -75,7 +92,8 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
     if (!voiceReady) { setError("语音服务尚未准备好，请联系管理家属。"); return; }
     if (!navigator.mediaDevices?.getUserMedia) { setError("麦克风需要安全连接，请通过忆谈的 HTTPS 地址打开。"); return; }
     busy.current = true; terminal.current = false; setPhase("connecting"); setError(""); setElapsed(0); setAudioBlocked(false);
-    resources.current.ready = false; resources.current.receivedAudio = false;
+    acceptCaption({ type: "reset", generation: 0 }); setPlaybackActivity("listening");
+    resources.current.ready = false; resources.current.receivedAudio = false; resources.current.callId = undefined;
     track("recording_consent");
     try {
       const context = new AudioContext({ sampleRate: 16000 });
@@ -85,7 +103,7 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
       track("microphone_allowed");
       if (!mounted.current) { stream.getTracks().forEach(track => track.stop()); return; }
       const r = resources.current;
-      r.stream = stream; r.context = context; r.playAt = 0;
+      r.stream = stream; r.context = context;
       await context.audioWorklet.addModule("/pcm-worklet.js");
       if (!mounted.current) return;
       if (!requestId.current) requestId.current = uuid();
@@ -93,7 +111,7 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
       r.callId = opened.id;
       if (!mounted.current) { await api(`/api/v1/calls/${opened.id}/abandon`, { method: "POST" }); return; }
       const socket = new WebSocket(wsUrl(opened.id)); r.socket = socket;
-      clock.current = { origin: context.currentTime, wall: performance.now(), gap: 0, gaps: [], suspended: 0, seq: 0, audioId: 0, stopping: false, finished: false };
+      clock.current = { origin: context.currentTime, wall: performance.now(), gap: 0, gaps: [], suspended: 0, seq: 0, stopping: false, finished: false };
       context.onstatechange = () => {
         const c = clock.current;
         if (!r.ready || terminal.current || c.stopping) return;
@@ -109,9 +127,12 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
       };
       const source = context.createMediaStreamSource(stream);
       const node = new AudioWorkletNode(context, "pcm-capture", { numberOfInputs: 2 }); r.node = node;
-      const playbackBus = context.createGain();
-      playbackBus.connect(context.destination);
-      playbackBus.connect(node, 0, 1);
+      const playback = new CallPlayback(context, {
+        caption: acceptCaption,
+        timeline: (kind, details, at) => timeline(kind, { ...details, ...(at === undefined ? {} : { at_ms: Math.max(0, (at - clock.current.origin) * 1000 + clock.current.gap) }) }),
+        activity: value => { if (mounted.current && !terminal.current) setPlaybackActivity(value); },
+      });
+      playback.connectRecording(node); r.playback = playback; setAnalyser(playback.analyser);
       source.connect(node);
       const silent = context.createGain(); silent.gain.value = 0;
       node.connect(silent); silent.connect(context.destination);
@@ -139,28 +160,32 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
       };
       socket.onmessage = event => {
         if (resources.current.socket !== socket) return;
-        const data = JSON.parse(String(event.data)) as { type: string; pcm?: string; error?: { message: string } };
+        let data;
+        try { data = callEventSchema.parse(JSON.parse(String(event.data))); }
+        catch {
+          terminal.current = true; cleanup(); busy.current = false; requestId.current = "";
+          setPhase("failed"); setError("通话数据格式异常，已收到的录音会保留。请返回回忆录查看。");
+          return;
+        }
+        if (data.type === "ping" || data.type === "opening_requested") return;
         if (data.type === "ready" && !r.ready) {
-          clock.current = { origin: context.currentTime, wall: performance.now(), gap: 0, gaps: [], suspended: context.state === "running" ? 0 : performance.now(), seq: 0, audioId: 0, stopping: false, finished: false };
+          clock.current = { origin: context.currentTime, wall: performance.now(), gap: 0, gaps: [], suspended: context.state === "running" ? 0 : performance.now(), seq: 0, stopping: false, finished: false };
           r.ready = true;
           timeline("start"); setPhase("opening"); setAudioBlocked(context.state !== "running");
         }
-        if (data.type === "audio" && data.pcm && !terminal.current && !clock.current.stopping) {
-          const bytes = Uint8Array.from(atob(data.pcm), letter => letter.charCodeAt(0));
-          const view = new DataView(bytes.buffer); const floats = new Float32Array(bytes.length / 2);
-          for (let i = 0; i < floats.length; i++) floats[i] = view.getInt16(i * 2, true) / 32768;
-          const buffer = context.createBuffer(1, floats.length, 24000); buffer.copyToChannel(floats, 0);
+        if (data.type === "audio" && !data.discarded && !terminal.current && !clock.current.stopping) {
           r.receivedAudio = true;
           if (context.state === "running") setPhase("live");
           else setAudioBlocked(true);
-          const playback = context.createBufferSource(); playback.buffer = buffer; playback.connect(playbackBus);
-          const audio_id = clock.current.audioId++;
-          r.sources.add(playback); playback.onended = () => { r.sources.delete(playback); if (!clock.current.stopping) timeline("ended", { audio_id }); };
-          const when = r.playAt > context.currentTime ? r.playAt : context.currentTime + 0.12;
-          playback.start(when); r.playAt = when + buffer.duration;
-          timeline("schedule", { audio_id, at_ms: Math.max(0, (when - clock.current.origin) * 1000 + clock.current.gap), duration_ms: buffer.duration * 1000 });
         }
-        if (data.type === "interrupted") { timeline("interrupt"); r.sources.forEach(item => item.stop()); r.sources.clear(); r.playAt = 0; }
+        if (data.type !== "ready" && data.type !== "done" && data.type !== "error" && !terminal.current && !clock.current.stopping) {
+          try { playback.receive(data); }
+          catch {
+            terminal.current = true; cleanup(); busy.current = false; requestId.current = "";
+            setPhase("failed"); setError("声音或字幕处理异常，已收到的录音会保留。请返回回忆录查看。");
+            return;
+          }
+        }
         if (data.type === "done") { terminal.current = true; cleanup(); busy.current = false; onFinished(); }
         if (data.type === "error") { terminal.current = true; cleanup(); busy.current = false; requestId.current = ""; setPhase("failed"); setError(data.error?.message || "访谈中断了，请返回回忆录查看已保存内容。"); }
       };
@@ -197,12 +222,15 @@ export function CallPanel({ profileId, elderName, photoId, voiceReady, onFinishe
   }
   const talking = phase === "live" || phase === "opening";
   const active = talking || phase === "saving" || phase === "connecting";
-  return <section>
-    <div className="call-orb"><Mic size={52} strokeWidth={1.2} /></div><div className="call-heading"><h2>{elderName}，我在听</h2><p>{phase === "opening" ? "已接通，正在准备开场，请稍候。" : phase === "live" ? "慢慢讲，随时可以打断我。" : phase === "saving" ? "正在保存这次访谈，请稍候。" : phase === "connecting" ? "正在接通，请稍候。" : "我是 AI 访谈者，陪您回忆走过的日子。"}</p></div>
-    {active ? <div className="call-timer" aria-label="通话时长">{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}</div> : <><label className="field">{photoId ? "这张照片有什么故事？" : "今天想聊什么？"}<textarea value={topic} onChange={event => setTopic(event.target.value)} maxLength={500} placeholder={photoId ? "照片里的人、地点，或您想聊的事情" : "可以不填，想起什么就聊什么"} /></label><label className="consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span>我本人同意录音，用来整理回忆录。随时可以结束访谈。</span></label></>}
+  const avatarStatus: InterviewerAvatarStatus = audioBlocked && talking ? "paused" : phase === "live" ? playbackActivity : phase === "connecting" || phase === "opening" || phase === "saving" || phase === "failed" ? phase : "idle";
+  const statusText = phase === "opening" ? "已接通，正在准备开场。" : phase === "live" ? audioBlocked ? "声音已暂停，恢复后继续。" : playbackActivity === "speaking" ? "我在说，您随时可以打断。" : playbackActivity === "thinking" ? "我在准备回应，请稍候。" : "慢慢讲，我在听。" : phase === "saving" ? "正在保存这次访谈。" : phase === "connecting" ? "正在接通，请稍候。" : phase === "failed" ? "访谈暂时中断，请查看保存情况。" : "我是 AI 访谈者，陪您回忆走过的日子。";
+  return <section className={styles.panel} data-call-phase={phase}>
+    <div className={styles.host}><InterviewerAvatar analyser={analyser} status={avatarStatus} /><div><span className={styles.identity}>忆谈 · AI 访谈者</span><h2>{elderName ? `${elderName}，慢慢聊` : "慢慢聊，不着急"}</h2><p role="status" aria-live="polite">{statusText}</p></div></div>
+    {active ? <div className={styles.callInfo}><span className={styles.recording}><i aria-hidden="true" />{phase === "saving" ? "正在保存" : "正在录音"}</span><span className={styles.timer} aria-label="通话时长">{String(Math.floor(elapsed / 60)).padStart(2, "0")}:{String(elapsed % 60).padStart(2, "0")}</span></div> : <><label className="field">{photoId ? "这张照片有什么故事？" : "今天想聊什么？"}<textarea value={topic} onChange={event => setTopic(event.target.value)} maxLength={500} placeholder={photoId ? "照片里的人、地点，或您想聊的事情" : "可以不填，想起什么就聊什么"} /></label><label className="consent"><input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} /><span>我本人同意录音，用来整理回忆录。随时可以结束访谈。</span></label></>}
+    {active || captions.length ? <CallTranscript entries={captions} paused={audioBlocked} /> : null}
     <Status error={error} />
     {audioBlocked && talking ? <div className="notice"><p>浏览器暂停了声音，请点击恢复后继续。</p><button type="button" className="secondary" onClick={() => void resumeAudio()}>恢复声音</button></div> : null}
-    <button type="button" className="primary" disabled={phase === "connecting" || phase === "saving"} onClick={talking ? stop : () => void start()}>{talking ? <PhoneOff /> : <Mic />}{talking ? "结束这次访谈" : phase === "saving" ? "正在保存…" : phase === "connecting" ? "正在接通…" : "开始聊聊"}</button>
+    <div className={styles.controls}><button type="button" className={`primary ${talking ? styles.end : ""}`} disabled={phase === "connecting" || phase === "saving"} onClick={talking ? stop : () => void start()}>{talking ? <PhoneOff /> : <Mic />}{talking ? "结束这次访谈" : phase === "saving" ? "正在保存…" : phase === "connecting" ? "正在接通…" : "开始聊聊"}</button></div>
     {phase === "failed" ? <button type="button" className="secondary section" onClick={onFinished}>返回回忆录查看</button> : null}
     <p className="talk-note">录音会保存下来，留给您和获得授权的家人。访谈时请保持这个页面打开，切换到后台会结束并保存。</p>
   </section>;
