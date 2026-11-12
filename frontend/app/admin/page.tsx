@@ -95,9 +95,10 @@ export default function Admin() {
   const [includeAdmin, setIncludeAdmin] = useState(false);
   const [includeTest, setIncludeTest] = useState(false);
   const query = new URLSearchParams({ ...dates, include_admin: String(includeAdmin), include_test: String(includeTest) });
-  const metrics = useResource(`/api/v1/admin/metrics?${query}`, metricsSchema);
-  const accounts = useResource("/api/v1/admin/accounts", accountsSchema);
-  const invites = useResource("/api/v1/admin/invitations", invitesSchema);
+  const metricsPath = `/api/v1/admin/metrics?${query}`;
+  const metrics = useResource(metricsPath, metricsSchema, { refreshPath: `${metricsPath}&refresh=true` });
+  const accounts = useResource("/api/v1/admin/accounts", accountsSchema, { enabled: tab === "accounts" });
+  const invites = useResource("/api/v1/admin/invitations", invitesSchema, { enabled: tab === "accounts" });
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [secret, setSecret] = useState<{ label: string; value: string } | null>(null);

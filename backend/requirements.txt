@@ -14,3 +14,4 @@ aliyun-python-sdk-core==2.16.0
 pytest==9.0.3
 Pillow==13.0.0
 argon2-cffi==25.1.0
+cachetools==8.0.0

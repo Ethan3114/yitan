@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from app.api.analytics import EventIn
 from app.api.cloud_accounts import client_address, cloud_admin, cloud_owner, repository, subject_hash
@@ -14,6 +14,7 @@ from app.services.analytics import VISITOR_COOKIE, ZONE, summarize_records
 from app.services.cloudbase import CloudDatabaseError
 
 router = APIRouter(prefix="/api/v1")
+EVENT_COLUMNS = "id,name,stage,visitor_id,owner_id,created_at,duration_seconds,error_code,session_id,page_id,page_visit_id,duration_ms"
 
 
 @router.post("/events")
@@ -62,7 +63,7 @@ def record(row: dict):
 
 
 @router.get("/admin/metrics")
-def metrics(request: Request, start: date | None = None, end: date | None = None, include_admin: bool = False, include_test: bool = False, admin: dict | None = Depends(cloud_admin)):
+def metrics(request: Request, start: date | None = None, end: date | None = None, include_admin: bool = False, include_test: bool = False, refresh: bool = False, admin: dict | None = Depends(cloud_admin)):
     if admin is None:
         return error_response(403, "forbidden", "仅管理员可以查看运营数据")
     now = utcnow()
@@ -73,11 +74,20 @@ def metrics(request: Request, start: date | None = None, end: date | None = None
         return error_response(400, "date_range_invalid", "请选择截至今天、不超过九十天的日期范围")
     since = datetime.combine(start, time.min, ZONE).astimezone(timezone.utc)
     until = datetime.combine(end + timedelta(days=1), time.min, ZONE).astimezone(timezone.utc)
-    cloud = repository(request)
+    cache = request.app.state.metrics_cache
+    key = (admin["owner_id"], start, end, include_admin, include_test, today, 2)
+    body, state = cache.read(key, lambda: build_metrics(repository(request), since, until, utcnow(), include_admin, include_test), refresh=refresh)
+    return Response(body, media_type="application/json", headers={
+        "Cache-Control": "private, no-store", "X-Metrics-Cache": state,
+        "X-Metrics-Cache-Max-Age": str(cache.max_age),
+    })
+
+
+def build_metrics(cloud, since, until, now, include_admin=False, include_test=False):
     accounts = [record(row) for row in cloud.rows("accounts", columns="id,owner_id,role,created_at,analytics_excluded", order="created_at.asc,id.asc")]
     visitors = {row["id"]: row["owner_id"] for row in cloud.rows("analytics_visitors", columns="id,owner_id", order="id.asc")}
-    previous = [record(row) for row in cloud.rows("analytics_events", filters={"created_at": "lt." + since.isoformat()}, order="created_at.asc,id.asc")]
-    rows = [record(row) for row in cloud.rows("analytics_events", filters={"and": "(created_at.gte." + since.isoformat() + ",created_at.lt." + min(until + timedelta(days=31), now).isoformat() + ")"}, order="created_at.asc,id.asc")]
+    previous = [record(row) for row in cloud.rows("analytics_events", columns=EVENT_COLUMNS, filters={"created_at": "lt." + since.isoformat()}, order="created_at.asc,id.asc")]
+    rows = [record(row) for row in cloud.rows("analytics_events", columns=EVENT_COLUMNS, filters={"and": "(created_at.gte." + since.isoformat() + ",created_at.lt." + min(until + timedelta(days=31), now).isoformat() + ")"}, order="created_at.asc,id.asc")]
     result = summarize_records(accounts, visitors, previous, rows, since, until, now, include_admin=include_admin, include_test=include_test)
     states = Counter(row["status"] for row in cloud.rows("draft_tasks", columns="status", order="id.asc"))
     result["tasks"] = [{"status": status, "count": count} for status, count in sorted(states.items())]

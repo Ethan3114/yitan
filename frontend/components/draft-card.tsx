@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { v4 as uuid } from "uuid";
 import { api, messageFor, read } from "@/lib/api";
 import { Call, DraftTask, dateLabel, taskSchema } from "@/lib/models";
@@ -12,27 +12,58 @@ export function DraftCard({ call, onComplete }: { call: Call; onComplete: () => 
   const requestId = useRef("");
   const active = task?.status === "queued" || task?.status === "running";
   const taskId = task?.id;
+  const completeFromPoll = useEffectEvent(onComplete);
   useEffect(() => {
     if (!active || !taskId) return;
-    const controller = new AbortController();
-    let delay = 2000;
-    let timer: ReturnType<typeof setTimeout>;
-    async function poll() {
-      if (!document.hidden) {
-        try {
-          const next = await read(`/api/v1/draft-tasks/${taskId}`, taskSchema, controller.signal);
-          setTask(next);
-          if (next.status === "failed") requestId.current = "";
-          if (next.status === "succeeded") { onComplete(); return; }
-          if (next.status === "failed") return;
-        } catch (cause) { if (!controller.signal.aborted) setError(messageFor(cause)); }
-      }
-      delay = Math.min(delay + 1000, 10000);
-      if (!controller.signal.aborted) timer = setTimeout(poll, delay);
+    let controller: AbortController | undefined;
+    let timer: number | undefined;
+    let disposed = false;
+    let finished = false;
+    let inFlight = false;
+    let refreshWhenReady = false;
+    function schedule() {
+      if (!disposed && !finished && !document.hidden) timer = window.setTimeout(() => { void poll(); }, 30000);
     }
-    timer = setTimeout(poll, delay);
-    return () => { controller.abort(); clearTimeout(timer); };
-  }, [active, taskId, onComplete]);
+    async function poll() {
+      if (disposed || finished || document.hidden) return;
+      if (inFlight) { refreshWhenReady = true; return; }
+      refreshWhenReady = false;
+      inFlight = true;
+      const request = new AbortController();
+      controller = request;
+      try {
+        const next = await read(`/api/v1/draft-tasks/${taskId}`, taskSchema, request.signal);
+        if (disposed || request.signal.aborted) return;
+        setTask(next);
+        setError("");
+        finished = next.status === "succeeded" || next.status === "failed";
+        if (next.status === "failed") requestId.current = "";
+        if (next.status === "succeeded") completeFromPoll();
+      } catch (cause) {
+        if (!disposed && !request.signal.aborted) setError(messageFor(cause));
+      } finally {
+        inFlight = false;
+        controller = undefined;
+        if (!disposed && !finished && !document.hidden) {
+          if (refreshWhenReady) void poll();
+          else schedule();
+        }
+      }
+    }
+    function visibility() {
+      window.clearTimeout(timer);
+      if (document.hidden) controller?.abort();
+      else { refreshWhenReady = true; void poll(); }
+    }
+    schedule();
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      controller?.abort();
+      document.removeEventListener("visibilitychange", visibility);
+    };
+  }, [active, taskId]);
   async function start() {
     if (busy || active) return;
     if (call.chapters.length && !window.confirm("重新整理将替换这次访谈的章节与核对内容。是否继续？")) return;

@@ -70,7 +70,7 @@ export function ExperienceTracker() {
         analyticsSession(true);
         pageEvent("page_heartbeat", pageId, visitId, sessionId, Date.now() - openedAt);
       }
-    }, 15000);
+    }, 60000);
     const events = ["pointerdown", "keydown", "scroll"] as const;
     events.forEach(event => window.addEventListener(event, activity, { passive: true }));
     window.addEventListener("yitan:book-activity", activity);

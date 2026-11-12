@@ -1,5 +1,3 @@
-"""忆谈后端入口。"""
-
 import hmac
 import ipaddress
 from contextlib import asynccontextmanager
@@ -24,6 +22,7 @@ from app.models import Base
 from app.services.tasks import recover_interrupted
 from app.services.cloudbase import CloudRepository
 from app.services.cloud_files import CloudFiles
+from app.services.metrics_cache import MetricsCache
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -46,6 +45,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title="忆谈", lifespan=lifespan, docs_url=None if settings.deployment_mode == "cloud" else "/docs", redoc_url=None)
     app.state.settings = settings
     app.state.draft_workers = set()
+    app.state.metrics_cache = MetricsCache()
     app.state.fernet = build_fernet(settings.audio_fernet_key)
     if settings.deployment_mode == "cloud":
         from app.api.cloud_accounts import router as cloud_accounts
