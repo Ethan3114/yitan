@@ -12,7 +12,7 @@ from app.models import CallContext, Profile
 
 from app.services.brief import latest_opening
 from app.services.calls import persist_call
-from app.services.doubao import RealtimeSession, VoiceError
+from app.services.doubao import RealtimeSession, VoiceError, opening_greeting
 from app.services.store import get_call, owner_from_session, save_audio, COOKIE
 from app.services.timeline import TimelineCapture
 from app.services.analytics import server_event
@@ -45,13 +45,11 @@ async def live(websocket: WebSocket, call_id: str) -> None:
         try:
             await session.connect(opening, background)
         except VoiceError as exc:
+            await session.close()
             await persist_call(db, websocket.app.state.fernet, websocket.app.state.settings.data_path, call, b"", b"", "", "", None, exc)
             await websocket.send_json({"type": "error", "error": {"code": exc.code, "message": exc.message}})
             await websocket.close()
             return
-        await websocket.send_json({"type": "ready"})
-        server_event(db, "call_connected", owner, call.id)
-        db.commit()
         user_pcm = bytearray()
         timeline = TimelineCapture()
         capture_complete = False
@@ -90,8 +88,22 @@ async def live(websocket: WebSocket, call_id: str) -> None:
 
         uploader = asyncio.create_task(upload())
         downloader = asyncio.create_task(download())
+        opening_guard = asyncio.create_task(session.wait_for_first_audio())
         try:
-            completed, _ = await asyncio.wait({uploader, downloader}, return_when=asyncio.FIRST_COMPLETED)
+            server_event(db, "call_connected", owner, call.id)
+            db.commit()
+            await websocket.send_json({"type": "ready"})
+            await websocket.send_json({"type": "opening_requested"})
+            await session.say(opening_greeting(opening))
+            waiting = {uploader, downloader, opening_guard}
+            while True:
+                completed, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
+                if opening_guard in completed:
+                    await opening_guard
+                    waiting.remove(opening_guard)
+                    completed.remove(opening_guard)
+                if completed:
+                    break
             if downloader in completed:
                 await downloader
                 raise VoiceError("voice_interrupted", "语音服务结束了连接，已经录下的声音会保存")
@@ -109,7 +121,8 @@ async def live(websocket: WebSocket, call_id: str) -> None:
         finally:
             uploader.cancel()
             downloader.cancel()
-            await asyncio.gather(uploader, downloader, return_exceptions=True)
+            opening_guard.cancel()
+            await asyncio.gather(uploader, downloader, opening_guard, return_exceptions=True)
             await session.close()
         if timeline.next_seq and not capture_complete and failure is None:
             failure = VoiceError("capture_incomplete", "录音末尾未能完整确认，已经收到的对话录音已保存")

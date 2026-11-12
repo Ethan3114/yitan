@@ -39,9 +39,14 @@ def main():
     function["dir"] = str(ROOT / "deploy/worker-timer")
     function["envVariables"] = configuration
     private = ROOT / ".intermediate/private/timer-cloudbaserc.json"
-    private.parent.mkdir(parents=True, exist_ok=True)
-    private.write_text(json.dumps(template), encoding="utf-8")
-    private.chmod(0o600)
+    private.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    private.parent.chmod(0o700)
+    descriptor = os.open(private, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+    os.fchmod(descriptor, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+        json.dump(template, stream)
+        stream.flush()
+        os.fsync(stream.fileno())
     result = subprocess.run([str(CLI), "--config-file", str(private), "--yes", "fn", "deploy", "yitan-worker-timer", "--force", "--json", "-e", ENV_ID], capture_output=True, text=True, env=process_env, cwd=ROOT / "deploy")
     if result.returncode:
         raise RuntimeError("忆谈定时函数部署失败；原始响应已隐藏")

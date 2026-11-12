@@ -18,7 +18,7 @@ from app.core.errors import error_response
 from app.schemas import CallIn, DraftTaskIn
 from app.services.brief import opening_line
 from app.services.cloudbase import CloudDatabaseError
-from app.services.doubao import RealtimeSession, VoiceError
+from app.services.doubao import RealtimeSession, VoiceError, opening_greeting
 from app.services.redact import redact_sensitive
 from app.services.store import COOKIE, pcm16_to_wav
 from app.services.timeline import TimelineCapture
@@ -295,7 +295,7 @@ async def live(websocket: WebSocket, call_id: str):
                 parts.append({"kind": kind, "sequence": sequences[kind], "file_id": file_id, "size_bytes": len(delta)})
                 saved_positions[kind] += len(delta)
                 saved_sequences[kind] += 1
-            payload = {"version": 1, "clock": "browser_audio_render", "sample_rate": 16000, "frames": timeline.next_seq, "duration_ms": len(timeline.pcm) / 32, "complete": capture_complete, "events": timeline.events}
+            payload = {"version": 1, "clock": "browser_audio_render", "sample_rate": 16000, "frames": timeline.next_seq, "duration_ms": len(timeline.pcm) / 32, "complete": capture_complete, "events": timeline.events, "provider_events": dict(session.event_counts), "opening_requested": session.opening_requested, "first_audio_received": session.first_audio.is_set()}
             encoded = app.state.fernet.encrypt(json.dumps(payload).encode()).decode()
             texts = {"realtime_user": redact_sensitive("".join(session.user_text)), "realtime_assistant": redact_sensitive("".join(session.assistant_text))}
             saved = await asyncio.to_thread(repository.rpc, "call_checkpoint", {"p_owner": owner, "p_call": call_id, "p_token": token, "p_chunks": parts, "p_texts": texts, "p_timeline": encoded, "p_status": status, "p_error": error})
@@ -345,7 +345,12 @@ async def live(websocket: WebSocket, call_id: str):
         while True:
             await asyncio.sleep(20)
             await websocket.send_json({"type": "ping"})
-            await checkpoint()
+            saving = asyncio.create_task(checkpoint())
+            try:
+                await asyncio.shield(saving)
+            except asyncio.CancelledError:
+                await saving
+                raise
 
     jobs = []
     try:
@@ -353,11 +358,22 @@ async def live(websocket: WebSocket, call_id: str):
         if context and context["topic"]:
             background += "\n本次家属提供的话题或照片说明（事实需老人确认）：" + context["topic"]
         await session.connect(opening, background)
-        await websocket.send_json({"type": "ready"})
-        repository.insert("analytics_events", {"id": str(uuid4()), "name": "call_connected", "owner_id": owner, "source": "server", "entity_id": call_id})
+        await asyncio.to_thread(repository.insert, "analytics_events", {"id": str(uuid4()), "name": "call_connected", "owner_id": owner, "source": "server", "entity_id": call_id})
         uploader, downloader, saver = [asyncio.create_task(coro()) for coro in [upload, download, persist_periodically]]
-        jobs = [uploader, downloader, saver]
-        done, _ = await asyncio.wait(jobs, return_when=asyncio.FIRST_COMPLETED)
+        opening_guard = asyncio.create_task(session.wait_for_first_audio())
+        jobs = [uploader, downloader, saver, opening_guard]
+        await websocket.send_json({"type": "ready"})
+        await websocket.send_json({"type": "opening_requested"})
+        await session.say(opening_greeting(opening))
+        waiting = set(jobs)
+        while True:
+            done, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)
+            if opening_guard in done:
+                await opening_guard
+                waiting.remove(opening_guard)
+                done.remove(opening_guard)
+            if done:
+                break
         for job in done:
             await job
         if uploader not in done:
