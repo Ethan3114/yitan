@@ -124,7 +124,7 @@ export function PageBook({ leaves, page, onPageChange, onBusyChange, className =
         const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
         const flippingTime = reduced ? 1 : Math.round(750 * 1000 / Math.min(1000, distance));
         const Flip = paperWindow.St.PageFlip;
-        const book = new Flip(host, { width, height, size: "fixed", autoSize: false, usePortrait: true, startPage: previous, showCover: false, flippingTime, drawShadow: true, maxShadowOpacity: .3, mobileScrollSupport: true, useMouseEvents: true, clickEventForward: true, disableFlipByClick: false, showPageCorners: !reduced, swipeDistance: 45 });
+        const book = new Flip(host, { width, height, size: "fixed", autoSize: false, usePortrait: true, startPage: previous, showCover: false, flippingTime, drawShadow: true, maxShadowOpacity: .3, mobileScrollSupport: true, useMouseEvents: true, clickEventForward: true, disableFlipByClick: false, showPageCorners: false, swipeDistance: 45 });
         engine.current = book;
         let rendered = false;
         function announce() {
@@ -142,9 +142,10 @@ export function PageBook({ leaves, page, onPageChange, onBusyChange, className =
         book.on("flip", announce);
         book.on("changeState", event => {
           const motion = String(event.data);
+          const busy = motion === "flipping" || motion === "user_fold";
           container.dataset.motion = motion;
-          container.setAttribute("aria-busy", String(motion !== "read"));
-          notifyBusy(motion !== "read");
+          container.setAttribute("aria-busy", String(busy));
+          notifyBusy(busy);
           if (motion === "read") announce();
         });
         let lastActivity = -Infinity;

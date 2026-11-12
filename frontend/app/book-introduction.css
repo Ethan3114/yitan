@@ -2,7 +2,7 @@
 .book-introduction-nav { min-height:76px; display:flex; align-items:center; justify-content:space-between; padding:8px; font-size:16px; }
 .book-introduction-nav a,.book-introduction-nav button { display:flex; align-items:center; min-height:44px; border:0; background:none; color:inherit; padding:0; }
 .guide-binding { padding:5px 6px 8px 5px; background:#6b5541; border-radius:5px; box-shadow:3px 7px 14px #46382722; perspective:1600px; }
-.guide-leaf { position:relative; height:100%; background-color:#faf3e7; background-size:100% 100%,100% 100%; background-position:center,bottom; background-repeat:no-repeat; border-left:1px solid #c9b898; padding:34px 26px 56px 30px; }
+.guide-leaf { position:relative; height:100%; background-color:#faf3e7; background-size:100% 100%,cover; background-position:center,center bottom; background-repeat:no-repeat; border-left:1px solid #c9b898; padding:34px 26px 56px 30px; }
 .guide-leaf::after { content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(90deg,#8e704c25,transparent 15px),repeating-linear-gradient(17deg,#8a632d06 0 1px,transparent 1px 4px),repeating-linear-gradient(94deg,#8a632d04 0 1px,transparent 1px 5px); }
 .guide-copy { position:relative; z-index:1; }
 .guide-copy h1,.guide-cover h1 { font:29px/1.65 "Songti SC","Noto Serif SC",SimSun,serif; white-space:pre-line; margin:22px 0; color:#41372e; }
@@ -15,7 +15,7 @@
 .guide-controls>a,.guide-controls>button { min-height:52px; display:flex; align-items:center; justify-content:center; white-space:nowrap; }
 .guide-controls>button:not(.primary) { padding:0; border:0; background:none; color:inherit; }
 .guide-controls .primary { width:68%; border-radius:16px; font-weight:500; }
-.guide-cover { text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; background:linear-gradient(#faf3e7a8,#faf3e7c9),url('/images/courtyard.png') center/100% 100%; }
+.guide-cover { text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; background-image:linear-gradient(#faf3e7a8,#faf3e7c9),url('/images/courtyard.png'); }
 .guide-cover .book-cover { width:180px; margin:22px 8px 16px 0; }
 .guide-cover .book-cover-inner { min-height:230px; padding:24px 18px 24px 28px; gap:12px; outline-offset:-16px; }
 .guide-cover .book-cover h2 { font-size:44px; letter-spacing:.18em; padding-left:.18em; }

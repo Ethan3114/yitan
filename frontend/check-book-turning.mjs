@@ -7,15 +7,20 @@ const publicOnly = process.env.CHECK_PUBLIC === "1";
 const originals = JSON.parse(await fs.readFile("../data/showcase-books.json", "utf8"));
 const samples = JSON.parse(await fs.readFile("content/public-samples.json", "utf8"));
 assert.equal(samples.length, 1);
-assert.equal(samples[0].chapters.length, 1);
-assert.deepEqual(samples[0].chapters[0].paragraphs, [originals[0].chapters[0].paragraphs[0]]);
-assert.equal(samples[0].characters, 216);
+const originalLi = originals.find(book => book.key === "li");
+const authorizedChapters = originalLi.chapters.map((chapter, index) => ({ ...chapter, paragraphs: index === 0 ? chapter.paragraphs.slice(1) : chapter.paragraphs }));
+assert.equal(samples[0].key, "li");
+assert.equal(samples[0].chapters.length, 7);
+assert.equal(JSON.stringify(samples[0].chapters) === JSON.stringify(authorizedChapters), true, "公开章节逐段匹配李奶奶第二段至全书结尾");
+assert.equal(samples[0].chapters.some(chapter => chapter.paragraphs.includes(originalLi.chapters[0].paragraphs[0])), false, "原始第一段不进入公开样书");
+assert.equal(samples[0].characters, 5150);
+assert.equal(samples[0].chapters.reduce((total, chapter) => total + chapter.paragraphs.reduce((length, paragraph) => length + paragraph.length, 0), 0), 5150);
 const books = publicOnly ? samples : originals;
 const browser = await chromium.launch({ channel: "chrome" });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 const page = await context.newPage();
 const errors = [];
-const results = { widths: [], guideTurns: 0, bodyTurns: 0, chapters: 0, publicCharacters: 216, exactOpening: true, errors };
+const results = { widths: [], guideTurns: 0, bodyTurns: 0, chapters: 0, publicCharacters: samples[0].characters, exactOpening: true, errors };
 page.on("pageerror", error => errors.push(error.message));
 
 async function turn(button, expected, selector = ".guide-page-book") {
@@ -140,7 +145,7 @@ results.unmountedFramesStopped = true;
 results.bookActivity = true;
 
 await page.goto(`${base}/welcome?step=3`);
-await page.frameLocator(".guide-page-book iframe").getByRole("link", { name: "李奶奶的故事 · 开篇节选 ›", exact: true }).click();
+await page.frameLocator(".guide-page-book iframe").getByRole("link", { name: "翻阅李奶奶的回忆录 ›", exact: true }).click();
 await page.getByRole("link", { name: "翻开阅读", exact: true }).waitFor();
 for (const book of books) {
   for (const [chapter, content] of book.chapters.entries()) {

@@ -24,7 +24,7 @@ for (const width of [320, 390, 430]) {
       });
       expect(geometry).toBe(true);
       if (step === 3) {
-        await expect(page.frameLocator('.guide-page-book iframe').getByRole('link', { name: '李奶奶的故事 · 开篇节选 ›' })).toHaveAttribute('href', '/books/li');
+        await expect(page.frameLocator('.guide-page-book iframe').getByRole('link', { name: '翻阅李奶奶的回忆录 ›' })).toHaveAttribute('href', '/books/li');
       }
       if (step < 5) {
         await page.locator('.guide-controls .primary').click();
@@ -40,7 +40,7 @@ for (const width of [320, 390, 430]) {
   test(`真实回忆录在 ${width}px 下阅读和翻页`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(`${origin}/welcome?step=3`);
-    await page.frameLocator('.guide-page-book iframe').getByRole("link", { name: "李奶奶的故事 · 开篇节选 ›" }).click();
+    await page.frameLocator('.guide-page-book iframe').getByRole("link", { name: "翻阅李奶奶的回忆录 ›" }).click();
     await expect(page.getByRole("link", { name: "翻开阅读" })).toBeVisible();
     await page.getByRole("link", { name: "查看目录" }).click();
     await expect(page.locator(".printed-contents li")).toHaveCount(7);

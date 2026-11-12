@@ -10,6 +10,9 @@ if (!origin?.startsWith("https://")) throw new Error("必须使用真实公网 H
 const admin = JSON.parse(await readFile(path.join(root, ".intermediate/private/cloud-admin.json"), "utf8"));
 const migration = JSON.parse(await readFile(path.join(root, "data/migration/li/manifest.json"), "utf8"));
 const expectedSample = JSON.parse(await readFile(path.join(root, "frontend/content/public-samples.json"), "utf8"))[0];
+const originalBook = JSON.parse(await readFile(path.join(root, "data/showcase-books.json"), "utf8")).find(book => book.key === "li");
+const expectedChapters = originalBook.chapters.map((chapter, index) => ({ ...chapter, paragraphs: index ? chapter.paragraphs : chapter.paragraphs.slice(1) }));
+assert(JSON.stringify(expectedSample.chapters) === JSON.stringify(expectedChapters), "公开内容与用户选定范围一致");
 const evidenceDirectory = path.join(root, "docs/evidence/阶段4");
 await mkdir(evidenceDirectory, { recursive: true });
 const browser = await chromium.launch({ channel: "chrome", headless: true });
@@ -43,6 +46,17 @@ try {
   await page.locator('.page-book[data-engine="page-flip"][data-motion="read"]').waitFor();
   await page.screenshot({ path: path.join(evidenceDirectory, "首页-390px.png"), animations: "disabled" });
   checks.push("公网品牌引导能够显示");
+  stage = "guide_background_and_hover";
+  const cover = page.frameLocator(".guide-page-book iframe").locator('[data-leaf-index="0"] .guide-leaf');
+  assert.equal(await cover.evaluate(element => getComputedStyle(element).backgroundSize), "100% 100%, cover");
+  for (const corner of ["top", "bottom"]) {
+    const bounds = await page.locator(".guide-page-book iframe").boundingBox();
+    await page.mouse.move(bounds.x + bounds.width - 4, bounds.y + (corner === "top" ? 4 : bounds.height - 4));
+    await page.waitForTimeout(200);
+    assert.equal(await page.locator(".guide-page-book").getAttribute("data-motion"), "read");
+    assert.equal(await page.locator(".guide-controls .primary").isEnabled(), true);
+  }
+  checks.push("公网底图等比显示，右上右下悬停不锁定按钮");
   stage = "continuous_page_turn";
   for (let step = 1; step <= 5; step += 1) {
     await page.locator(".guide-controls button.primary").click();
@@ -71,12 +85,39 @@ try {
     await noScript.close();
   }
   stage = "public_excerpt";
-  await visit("/books/li?view=read&chapter=0");
-  const paragraphs = await page.locator(".printed-columns p").allTextContents();
-  if (JSON.stringify(paragraphs) !== JSON.stringify(expectedSample.chapters[0].paragraphs)) throw new Error("公开节选与授权正文不一致");
-  assert.equal(paragraphs.length, 1);
-  assert.equal(paragraphs.join("").length, expectedSample.characters);
-  checks.push(`匿名样书逐字显示李奶奶开篇${expectedSample.characters}字`);
+  let publicCharacters = 0;
+  for (const [chapter, expected] of expectedSample.chapters.entries()) {
+    await visit(`/books/li?view=read&chapter=${chapter}`);
+    await page.locator('.reading-page-book[data-engine="page-flip"]').waitFor();
+    const paragraphs = await page.locator(".printed-columns p").allTextContents();
+    assert(JSON.stringify(paragraphs) === JSON.stringify(expected.paragraphs), "公开章节与授权正文逐字一致");
+    assert(!paragraphs.includes(originalBook.chapters[0].paragraphs[0]), "公开正文从第二个自然段开始");
+    const count = await page.locator(".reading-binding > [hidden] .turning-leaf").count();
+    let visibleText = "";
+    for (let index = 0; index < count; index += 1) {
+      await page.waitForFunction(index => {
+        const book = document.querySelector(".reading-page-book");
+        return book?.dataset.pageIndex === String(index) && book.dataset.motion === "read";
+      }, index);
+      const leaf = page.frameLocator(".reading-page-book iframe").locator(`[data-leaf-index="${index}"][aria-hidden="false"]`);
+      visibleText += (await leaf.locator(".printed-page-body p").allTextContents()).join("");
+      const fits = await leaf.evaluate(element => {
+        const viewport = element.querySelector(".page-window").getBoundingClientRect();
+        return [...element.querySelectorAll(".printed-page-body p")].every(paragraph => {
+          const range = document.createRange();
+          range.selectNodeContents(paragraph);
+          return [...range.getClientRects()].every(rect => rect.left >= viewport.left - 1 && rect.right <= viewport.right + 1 && rect.top >= viewport.top - 1 && rect.bottom <= viewport.bottom + 1);
+        });
+      });
+      assert(fits, "公开正文的实际书页完整显示文字");
+      if (index + 1 < count) await page.getByRole("button", { name: "下一页", exact: true }).click();
+    }
+    assert(visibleText === expected.paragraphs.join(""), "逐页翻阅后授权正文全部可读");
+    publicCharacters += paragraphs.join("").length;
+  }
+  assert.equal(expectedSample.chapters.length, originalBook.chapters.length);
+  assert.equal(publicCharacters, expectedSample.characters);
+  checks.push(`匿名样书逐字显示李奶奶第二段起的${expectedSample.chapters.length}章${publicCharacters}字`);
   stage = "login";
   await visit("/login?next=/admin");
   await page.getByLabel("账号", { exact: true }).fill(admin.username);
@@ -136,6 +177,9 @@ try {
   const denied = await anonymous.request.get(`${origin}/api/v1/profiles/${migration.cloud_profile_id}`);
   if (![401, 404].includes(denied.status())) throw new Error("完整私人回忆录允许匿名读取");
   checks.push("完整回忆录匿名读取被拒绝");
+  const deniedAudio = await anonymous.request.head(`${origin}/api/v1/calls/${migration.cloud_call_id}/audio/playback`);
+  assert([401, 404].includes(deniedAudio.status()), "匿名读取原始录音被拒绝");
+  checks.push("原始录音匿名读取被拒绝");
   await anonymous.close();
   if (errors.length) throw new Error("公网页面出现脚本错误：" + errors.join(","));
   const directory = path.join(root, ".intermediate/public-browser");
