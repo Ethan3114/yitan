@@ -16,7 +16,7 @@ from app.api.cloud_accounts import cloud_owner
 from app.api.live import _forward
 from app.core.errors import error_response
 from app.schemas import CallIn, DraftTaskIn
-from app.services.brief import opening_line
+from app.services.brief import latest_cloud_opening
 from app.services.cloudbase import CloudDatabaseError
 from app.services.doubao import RealtimeSession, VoiceError, opening_greeting
 from app.services.redact import redact_sensitive
@@ -268,12 +268,7 @@ async def live(websocket: WebSocket, call_id: str):
     await websocket.accept()
     profile = await asyncio.to_thread(repository.one, "profiles", filters={"id": "eq." + row["profile_id"], "owner_id": "eq." + owner})
     context = await asyncio.to_thread(repository.one, "call_contexts", filters={"call_id": "eq." + call_id, "owner_id": "eq." + owner})
-    prior_calls = {item["id"] for item in repository.rows("calls", filters={"owner_id": "eq." + owner, "profile_id": "eq." + row["profile_id"]})}
-    prior = [item for item in repository.rows("chapters", filters={"owner_id": "eq." + owner, "call_id": "neq." + call_id}, order="created_at.desc") if item["call_id"] in prior_calls]
-    opening = ""
-    if prior:
-        paragraphs = list(repository.rows("paragraphs", filters={"chapter_id": "eq." + prior[0]["id"], "owner_id": "eq." + owner}, order="position.asc"))
-        opening = opening_line(prior[0]["title"], "".join(p["text"] for p in paragraphs))
+    opening = await asyncio.to_thread(latest_cloud_opening, repository, owner, row["profile_id"], call_id)
     session = RealtimeSession(settings)
     timeline, user_pcm = TimelineCapture(), bytearray()
     positions = {"user": 0, "assistant": 0, "conversation": 0}
@@ -357,14 +352,14 @@ async def live(websocket: WebSocket, call_id: str):
         background = f"称呼：{profile['elder_name']}。想聊的话题：{profile['topics_want']}。不想聊的话题：{profile['topics_avoid']}。"
         if context and context["topic"]:
             background += "\n本次家属提供的话题或照片说明（事实需老人确认）：" + context["topic"]
-        await session.connect(opening, background)
+        await session.connect(opening.context, background)
         await asyncio.to_thread(repository.insert, "analytics_events", {"id": str(uuid4()), "name": "call_connected", "owner_id": owner, "source": "server", "entity_id": call_id})
         uploader, downloader, saver = [asyncio.create_task(coro()) for coro in [upload, download, persist_periodically]]
         opening_guard = asyncio.create_task(session.wait_for_first_audio())
         jobs = [uploader, downloader, saver, opening_guard]
         await websocket.send_json({"type": "ready"})
         await websocket.send_json({"type": "opening_requested"})
-        await session.say(opening_greeting(opening))
+        await session.say(opening_greeting(opening.spoken))
         waiting = set(jobs)
         while True:
             done, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)

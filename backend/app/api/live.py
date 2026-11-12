@@ -43,7 +43,7 @@ async def live(websocket: WebSocket, call_id: str) -> None:
         if context and context.topic:
             background += f"\n本次家属提供的话题或照片说明（事实需老人确认）：{context.topic}"
         try:
-            await session.connect(opening, background)
+            await session.connect(opening.context, background)
         except VoiceError as exc:
             await session.close()
             await persist_call(db, websocket.app.state.fernet, websocket.app.state.settings.data_path, call, b"", b"", "", "", None, exc)
@@ -94,7 +94,7 @@ async def live(websocket: WebSocket, call_id: str) -> None:
             db.commit()
             await websocket.send_json({"type": "ready"})
             await websocket.send_json({"type": "opening_requested"})
-            await session.say(opening_greeting(opening))
+            await session.say(opening_greeting(opening.spoken))
             waiting = {uploader, downloader, opening_guard}
             while True:
                 completed, _ = await asyncio.wait(waiting, return_when=asyncio.FIRST_COMPLETED)

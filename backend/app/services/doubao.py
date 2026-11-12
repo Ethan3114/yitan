@@ -56,12 +56,10 @@ def session_create_payload(settings: Settings, opening: str = "", background: st
 
 
 def opening_greeting(previous: str = "") -> str:
-    introduction = "您好，我是忆谈的AI访谈者，陪您慢慢聊。聊天会录音，用来整理您的回忆录，您随时可以结束。"
+    introduction = "我是忆谈的AI访谈者。聊天会录音，帮您整理回忆录，您随时可以结束。"
     if not previous.strip():
-        return introduction + "您小时候的家是什么样的？"
-    excerpt = previous.strip()[:120]
-    excerpt = excerpt[:excerpt.rfind("。") + 1]
-    return introduction + (excerpt or "上次的故事已经保存，今天可以接着聊。") + "您想从哪件事接着讲？"
+        return "您好，" + introduction + "那咱们就从您小时候慢慢聊起。您小时候的家是什么样的？"
+    return "您好，又见面了。" + introduction + previous.strip() + "您愿意从哪儿接着讲？"
 
 
 class RealtimeSession:
